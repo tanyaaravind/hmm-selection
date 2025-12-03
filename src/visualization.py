@@ -9,7 +9,15 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import sys
 
-sys.path.append('/home/claude/selection_hmm/src')
+import os
+
+# Get the directory where THIS file is located
+current_dir = os.path.dirname(os.path.abspath(__file__))
+# Go up one level to project root, then into src
+project_root = os.path.dirname(current_dir)
+src_path = os.path.join(project_root, 'results')
+sys.path.append(src_path)
+
 from hmm_core import SelectionHMM
 from simulation import simulate_selection_region
 
@@ -19,7 +27,7 @@ plt.rcParams['figure.dpi'] = 100
 plt.rcParams['font.size'] = 10
 
 
-def plot_preliminary_results(save_path='/home/claude/selection_hmm/results/preliminary_results.png'):
+def plot_preliminary_results(save_path=f'{src_path}/preliminary_results.png'):
     """
     Generate the preliminary results figure for presentation
     

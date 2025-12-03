@@ -11,8 +11,14 @@ Expected behavior:
 
 import numpy as np
 import sys
-sys.path.append('/Users/tanyaaravind/genomics-project/selection_hmm/src')
-from hmm_core import SelectionHMM
+import os
+
+# Get the directory where THIS file is located
+current_dir = os.path.dirname(os.path.abspath(__file__))
+# Go up one level to project root, then into src
+project_root = os.path.dirname(current_dir)
+src_path = os.path.join(project_root, 'src')
+sys.path.append(src_path)
 
 
 def toy_example():
