@@ -388,6 +388,131 @@ class SelectionHMM:
         
         return posteriors
 
+    def viterbi(self, observations, positions):
+        """
+        Decode the most likely state sequence using the Viterbi algorithm.
+
+        Parameters
+        ----------
+        observations : np.ndarray
+            Sequence of observations.
+        positions : np.ndarray
+            Genomic positions for distance-aware transitions.
+
+        Returns
+        -------
+        path : np.ndarray
+            Most likely hidden state for each observation (2-state model).
+        """
+        T = len(observations)
+        log_delta = np.zeros((T, self.n_states))
+        psi = np.zeros((T, self.n_states), dtype=int)
+
+        for state in range(self.n_states):
+            log_delta[0, state] = (
+                self.log_initial[state] +
+                self.emission_log_prob(observations[0], state)
+            )
+
+        for t in range(1, T):
+            distance = positions[t] - positions[t-1]
+            for to_state in range(self.n_states):
+                candidates = []
+                for from_state in range(self.n_states):
+                    log_transition = self.transition_log_prob(
+                        from_state, to_state, distance
+                    )
+                    candidates.append(log_delta[t-1, from_state] + log_transition)
+                best_prev = np.argmax(candidates)
+                log_delta[t, to_state] = candidates[best_prev] + self.emission_log_prob(
+                    observations[t], to_state
+                )
+                psi[t, to_state] = best_prev
+
+        path = np.zeros(T, dtype=int)
+        path[T-1] = np.argmax(log_delta[T-1, :])
+        for t in range(T-2, -1, -1):
+            path[t] = psi[t+1, path[t+1]]
+        return path
+
+    def fit(self, observations, positions, n_iter=10, tol=1e-4, verbose=True):
+        """
+        Baum–Welch training (EM) to re-estimate emission parameters and
+        the distance_scale heuristic.
+
+        Notes:
+        - Re-estimates mean and variance for each state's Gaussian emission.
+        - Approximates distance_scale from expected stay probabilities.
+        - Keeps initial state probabilities fixed (0.5/0.5) for simplicity.
+        """
+        observations = np.asarray(observations)
+        positions = np.asarray(positions)
+        T = len(observations)
+
+        prev_loglik = -np.inf
+        for iteration in range(n_iter):
+            log_forward = self.forward_algorithm(observations, positions)
+            log_backward = self.backward_algorithm(observations, positions)
+
+            # Log-likelihood via log-sum-exp of the final forward column
+            loglik = log_sum_exp(log_forward[-1, :])
+
+            # Posterior responsibilities (gamma)
+            log_gamma = log_forward + log_backward
+            max_log = np.max(log_gamma, axis=1, keepdims=True)
+            gamma = np.exp(log_gamma - max_log)
+            gamma /= gamma.sum(axis=1, keepdims=True)
+
+            # Expected transitions (xi)
+            xi = np.zeros((T - 1, self.n_states, self.n_states))
+            for t in range(T - 1):
+                distance = positions[t+1] - positions[t]
+                for i in range(self.n_states):
+                    for j in range(self.n_states):
+                        log_term = (
+                            log_forward[t, i]
+                            + self.transition_log_prob(i, j, distance)
+                            + self.emission_log_prob(observations[t+1], j)
+                            + log_backward[t+1, j]
+                        )
+                        xi[t, i, j] = np.exp(log_term - loglik)
+
+                xi_sum = xi[t].sum()
+                if xi_sum > 0:
+                    xi[t] /= xi_sum
+
+            # M-step: update emission means/variances
+            for state_name, state_idx in zip(self.state_names, range(self.n_states)):
+                weight = gamma[:, state_idx].sum()
+                if weight == 0:
+                    continue
+                mean = np.sum(gamma[:, state_idx] * observations) / weight
+                var = np.sum(gamma[:, state_idx] * (observations - mean) ** 2) / weight
+                std = np.sqrt(max(var, 1e-6))
+                self.emission_params[state_name]['mean'] = mean
+                self.emission_params[state_name]['std'] = std
+
+            # Heuristic update for distance_scale based on expected stays
+            stay_prob = np.sum(xi[:, 0, 0] + xi[:, 1, 1]) / np.sum(xi)
+            avg_distance = np.mean(np.diff(positions))
+            stay_prob = min(max(stay_prob, 0.51), 0.99)  # avoid degenerate bounds
+            new_lambda = -avg_distance / np.log(2 * stay_prob - 1)
+            if np.isfinite(new_lambda) and new_lambda > 1:
+                self.distance_scale = new_lambda
+                self.transition_params['distance_scale'] = new_lambda
+
+            if verbose:
+                print(f"[EM] Iter {iteration+1}: loglik={loglik:.3f}, "
+                      f"lambda={self.distance_scale:.1f}, "
+                      f"neutral mean={self.emission_params['neutral']['mean']:.3f}, "
+                      f"selection mean={self.emission_params['selection']['mean']:.3f}")
+
+            if abs(loglik - prev_loglik) < tol:
+                break
+            prev_loglik = loglik
+
+        return self
+
 
 # ===== UTILITY FUNCTION FOR LOG-SUM-EXP =====
 def log_sum_exp(log_values):
