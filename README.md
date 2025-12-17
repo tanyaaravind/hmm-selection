@@ -1,7 +1,13 @@
 ### Project
 Applying Hidden Markov Models to Detect Selection on ABO Blood Group Genes Across Human Populations
 
-### Scope (aligned with instructor feedback)
+### Team
+- Wellington Mapise (wpm44), Junior, Computer Science
+- Tanya Aravind (ta374), Junior, Computer Science
+- Amy Oduor (aao73), Junior, Computer Science
+- Sheki Okwayo (lso24), Junior, Computer Science
+
+### Scope
 - We are scoping to a 2-state HMM (neutral vs selection) on the ABO locus as the primary result. Balancing-selection state, Rh locus, and full Shen et al. non-homogeneous details are optional/future work.
 - Emissions: per-SNP population differentiation metrics. Current scripts use ΔAF between two populations (e.g., YRI vs CEU); `hmm_core.py` assumes Gaussian emissions over these values. If you swap in FST or another scalar, update the means/stds accordingly.
 - Complex stats (iHS/Tajima’s D/FST computation) can rely on existing tools; `src/stats.py` is a placeholder if needed.
@@ -27,7 +33,7 @@ hmm = SelectionHMM(emission_params, transition_params)
 hmm.fit(observations, positions, n_iter=10)
 ```
 
-### Data Prep (Wellington)
+### Data Prep
 - Input: bgzipped VCF slice for ABO (Rh optional) and a sample map CSV (`sample_id,pop`).
 - Run:
 ```bash
