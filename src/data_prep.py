@@ -111,6 +111,99 @@ def save_tables(af_df: pd.DataFrame, delta_df: pd.DataFrame, out_dir: str):
     return af_path, delta_path
 
 
+def load_hmm_data(delta_af_path: str, pop_a: str = None, pop_b: str = None):
+    """
+    Load DeltaAF data and convert to HMM input format.
+    
+    This function reads the delta_af.csv file produced by data_prep.py
+    and converts it to the format expected by SelectionHMM:
+    - observations: numpy array of DeltaAF values
+    - positions: numpy array of genomic positions (in bp)
+    
+    Parameters:
+    -----------
+    delta_af_path : str
+        Path to delta_af.csv file (output from data_prep.py)
+    pop_a : str, optional
+        Population A name (for column matching). If None, auto-detects.
+    pop_b : str, optional
+        Population B name (for column matching). If None, auto-detects.
+    
+    Returns:
+    --------
+    observations : numpy array
+        DeltaAF values (|AF_popA - AF_popB|) for each SNP
+    positions : numpy array
+        Genomic positions in base pairs
+    metadata : dict
+        Dictionary with additional info: chrom, af_pop_a, af_pop_b, snp_ids (if available)
+    
+    Example:
+    --------
+    >>> observations, positions, metadata = load_hmm_data('results/abo_freqs/delta_af.csv')
+    >>> hmm = SelectionHMM(emission_params, transition_params)
+    >>> posteriors = hmm.posterior_probabilities(observations, positions)
+    """
+    import numpy as np
+    
+    delta_df = pd.read_csv(delta_af_path)
+    
+    # Auto-detect population columns if not provided
+    if pop_a is None or pop_b is None:
+        af_cols = [col for col in delta_df.columns if col.startswith('af_')]
+        if len(af_cols) >= 2:
+            pop_a = af_cols[0].replace('af_', '')
+            pop_b = af_cols[1].replace('af_', '')
+        else:
+            raise ValueError(f"Could not auto-detect population columns. Found: {af_cols}")
+    
+    af_a_col = f'af_{pop_a}'
+    af_b_col = f'af_{pop_b}'
+    
+    # Validate columns exist
+    required_cols = ['pos', 'delta_af']
+    if af_a_col not in delta_df.columns:
+        required_cols.append(af_a_col)
+    if af_b_col not in delta_df.columns:
+        required_cols.append(af_b_col)
+    
+    missing = [col for col in required_cols if col not in delta_df.columns]
+    if missing:
+        raise ValueError(f"Missing required columns in {delta_af_path}: {missing}")
+    
+    # Sort by position to ensure correct order
+    delta_df = delta_df.sort_values('pos').reset_index(drop=True)
+    
+    # Extract data
+    positions = delta_df['pos'].values.astype(int)
+    observations = delta_df['delta_af'].values.astype(float)
+    
+    # Build metadata
+    metadata = {
+        'chrom': delta_df['chrom'].values[0] if 'chrom' in delta_df.columns else None,
+        'pop_a': pop_a,
+        'pop_b': pop_b,
+        'n_snps': len(positions),
+        'region_start': int(positions.min()),
+        'region_end': int(positions.max()),
+        'region_size': int(positions.max() - positions.min())
+    }
+    
+    # Add allele frequencies if available
+    if af_a_col in delta_df.columns:
+        metadata['af_pop_a'] = delta_df[af_a_col].values
+    if af_b_col in delta_df.columns:
+        metadata['af_pop_b'] = delta_df[af_b_col].values
+    
+    # Add SNP IDs if available (rs numbers)
+    if 'snp_id' in delta_df.columns:
+        metadata['snp_ids'] = delta_df['snp_id'].values.tolist()
+    elif 'id' in delta_df.columns:
+        metadata['snp_ids'] = delta_df['id'].values.tolist()
+    
+    return observations, positions, metadata
+
+
 def main():
     """
     Minimal CLI for quick tests.

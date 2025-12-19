@@ -27,3 +27,14 @@ data/*.vcf
 data/*.vcf.gz
 data/*.tbi
 results/abo_freqs_demo/
+
+# Large genomics data
+data/raw_vcf/
+*.vcf
+*.vcf.gz
+*.tbi
+
+# Python cache
+__pycache__/
+*.pyc
+*.csi

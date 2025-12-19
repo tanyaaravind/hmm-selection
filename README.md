@@ -8,26 +8,122 @@ Applying Hidden Markov Models to Detect Selection on ABO Blood Group Genes Acros
 - Sheki Okwayo (lso24), Junior, Computer Science
 
 ### Scope
-- Default analysis: 2-state HMM (neutral vs selection) on the ABO locus only. Balancing-selection, Rh locus, or full Shen et al. non-homogeneous features are stretch goals, not required.
-- Emissions: one scalar population-differentiation metric per SNP. Defaults to ΔAF (e.g., |AF_YRI−AF_CEU|); FST can be swapped in. Set the Gaussian means/stds in `hmm_core.py`/scripts to match whichever metric you choose.
-- Heavyweight stats (full iHS/Tajima’s D pipelines) can be pulled from existing tools; `src/stats.py` keeps only lightweight helpers. Use external software if time is short.
-
-### Reporting reminders
-- Clearly state the two hidden states (neutral, selection) and the exact per-SNP emission metric used.
-- If you change emissions (ΔAF vs FST), log the parameter choices for mean/std in the report so readers can interpret the HMM outputs.
+- We are scoping to a 2-state HMM (neutral vs selection) on the ABO locus as the primary result. Balancing-selection state, Rh locus, and full Shen et al. non-homogeneous details are optional/future work.
+- Emissions: per-SNP population differentiation metrics. Current scripts use ΔAF (absolute difference in allele frequencies) between two populations (e.g., YRI vs CEU); `hmm_core.py` assumes Gaussian emissions over these values. If you swap in FST or another scalar, update the means/stds accordingly.
+- Complex stats (iHS/Tajima's D/FST computation) can rely on existing tools; `src/stats.py` is a placeholder if needed.
 
 ### Overview
 - Two-state HMM in `src/hmm_core.py` detects neutral vs selection signals from differentiation metrics. Forward/backward, Viterbi decoding, and Baum–Welch training are implemented.
 - Simulations in `src/simulation.py` generate toy SNP series with a known selection segment.
-- Visualization scripts in `src/visualization.py` and `tests/test_abo_data.py` produce figures saved in `results/`.
-- Data prep stub in `src/data_prep.py` extracts allele frequencies from 1000 Genomes VCF slices and computes ΔAF tables for specified populations.
+- Visualization scripts:
+  - `src/visualization.py`: Generates 2-panel preliminary results figure from simulated data → `results/preliminary_results.png`
+  - `src/visualization_expanded.py`: Generates 2-panel preliminary results figure for real ABO data → `results/preliminary_results_expanded.png`
+  - `tests/test_abo_data.py`: Generates comprehensive 3-panel figures for both small and expanded datasets → `results/real_abo_analysis.png` and `results/real_abo_analysis_expanded.png`
+- Data prep in `src/data_prep.py` extracts allele frequencies from 1000 Genomes VCF slices and computes ΔAF tables for specified populations (YRI, CEU, CHB).
 
 ### Quickstart
-1) Install deps: `pip install -r requirements.txt` (optionally `pip install cyvcf2` for VCF parsing).
-2) Run toy sanity check: `python tests/test_toy_example.py`.
-3) Minimal fit/decoding check: `python tests/test_hmm_fit.py`.
-4) Generate simulated figure: `python src/visualization.py` → `results/preliminary_results.png`.
-5) ABO example figure (hardcoded ΔAF table): `python tests/test_abo_data.py` → `results/real_abo_analysis.png`.
+
+#### 1. Install Dependencies
+```bash
+pip install -r requirements.txt
+# For VCF parsing (required for data extraction):
+pip install cyvcf2
+# Or with conda:
+conda install -c bioconda cyvcf2
+```
+
+#### 2. Run Validation Tests
+```bash
+# Toy example with known ground truth
+python tests/test_toy_example.py
+
+# Minimal fit/decoding check
+python tests/test_hmm_fit.py
+```
+
+#### 3. Generate Preliminary Results Figures
+```bash
+# Simulated data (2-panel figure)
+python src/visualization.py
+# Output: results/preliminary_results.png
+
+# Real ABO data (2-panel figure)
+python src/visualization_expanded.py
+# Output: results/preliminary_results_expanded.png
+```
+
+#### 4. Run Real ABO Data Analysis (Main Workflow)
+```bash
+# Step 1: Extract data from VCF (if you have a VCF file)
+python src/data_prep.py \
+    --vcf data/abo_region.vcf.gz \
+    --sample-map data/samples.csv \
+    --pop-a YRI \
+    --pop-b CEU \
+    --out results/abo_expanded
+
+# Step 2: Filter to non-zero DeltaAF (optional, recommended)
+python filter_nonzero_deltaaf.py \
+    --input results/abo_expanded/delta_af.csv \
+    --output results/abo_expanded/delta_af_nonzero.csv
+
+# Step 3: Generate comprehensive 3-panel analysis figures
+python tests/test_abo_data.py
+# Outputs:
+#   - results/real_abo_analysis.png (small dataset, 8 SNPs)
+#   - results/real_abo_analysis_expanded.png (expanded dataset, 648+ SNPs)
+```
+
+### Data Preparation
+
+#### Input Requirements
+- **VCF file**: bgzipped VCF slice for ABO region (e.g., `data/abo_region.vcf.gz`)
+- **Sample map**: CSV file mapping sample IDs to populations (`sample_id,pop`)
+  - Can be created from 1000 Genomes panel file using `scripts/create_sample_map.py`
+
+#### Running Data Prep
+```bash
+python src/data_prep.py \
+    --vcf data/abo_region.vcf.gz \
+    --sample-map data/samples.csv \
+    --pop-a YRI \
+    --pop-b CEU \
+    --out results/abo_expanded
+```
+
+#### Outputs
+- `allele_frequencies.csv`: Allele frequencies per population (YRI, CEU, CHB if available)
+- `delta_af.csv`: DeltaAF values for all SNPs (includes zeros)
+- `delta_af_nonzero.csv`: Filtered version with only non-zero DeltaAF values (recommended for analysis)
+
+#### Filtering Non-Zero DeltaAF
+Many SNPs have zero DeltaAF (no population differentiation). Filtering removes these for cleaner analysis:
+```bash
+python filter_nonzero_deltaaf.py \
+    --input results/abo_expanded/delta_af.csv \
+    --output results/abo_expanded/delta_af_nonzero.csv
+```
+
+### Visualization Scripts
+
+**`src/visualization.py`** - Simulated data preliminary results:
+- Generates 2-panel figure (FST values + HMM posteriors)
+- Uses simulated data with known ground truth
+- Output: `results/preliminary_results.png`
+
+**`src/visualization_expanded.py`** - Real data preliminary results:
+- Generates 2-panel figure (DeltaAF values + HMM posteriors)
+- Uses real ABO data from 1000 Genomes
+- Output: `results/preliminary_results_expanded.png`
+
+**`tests/test_abo_data.py`** - Comprehensive real data analysis:
+- Generates comprehensive 3-panel figures for both datasets:
+  1. Allele frequencies across populations (YRI, CEU, CHB)
+  2. DeltaAF with highlighting for high-differentiation regions
+  3. HMM posterior probabilities of selection state
+- Outputs:
+  - `results/real_abo_analysis.png` (small dataset, 8 SNPs)
+  - `results/real_abo_analysis_expanded.png` (expanded dataset, 648+ SNPs)
 
 ### Training (Baum–Welch)
 Use `SelectionHMM.fit(observations, positions, n_iter=10)` to re-estimate emission means/stds and a heuristic distance scale. Example:
@@ -37,21 +133,35 @@ hmm = SelectionHMM(emission_params, transition_params)
 hmm.fit(observations, positions, n_iter=10)
 ```
 
-### Data Prep
-- Input: bgzipped VCF slice for ABO (Rh optional) and a sample map CSV (`sample_id,pop`).
-- Run:
-```bash
-python src/data_prep.py --vcf data/abo_slice.vcf.gz --sample-map data/samples.csv --pop-a YRI --pop-b CEU --out results/abo_freqs
+### Project Structure
 ```
-- Outputs: `allele_frequencies.csv` and `delta_af.csv` under the chosen directory. If VCF parsing is unavailable, supply `--af-table` with a precomputed allele frequency CSV.
+hmm-selection/
+├── src/
+│   ├── hmm_core.py              # Core HMM implementation
+│   ├── data_prep.py             # VCF parsing and DeltaAF computation
+│   ├── simulation.py            # Simulated data generation
+│   ├── visualization.py         # Simulated data visualization
+│   └── visualization_expanded.py # Main real data analysis script (includes visualization functions)
+├── tests/
+│   ├── test_toy_example.py      # Validation with known ground truth
+│   ├── test_hmm_fit.py          # HMM fitting tests
+│   └── test_abo_data.py         # Small real data test
+├── scripts/
+│   ├── create_sample_map.py     # Convert 1000 Genomes panel to sample map
+│   └── check_data_size.py       # Check number of SNPs in CSV
+├── data/                        # Input data (VCF files, sample maps)
+├── results/                     # Output figures and processed data
+│   ├── abo_expanded/            # Expanded ABO dataset
+│   │   ├── allele_frequencies.csv
+│   │   ├── delta_af.csv
+│   │   └── delta_af_nonzero.csv
+│   ├── preliminary_results.png  # Simulated data (2-panel)
+│   ├── preliminary_results_expanded.png  # Real data (2-panel)
+│   ├── real_abo_analysis.png  # Small dataset comprehensive (3-panel)
+│   └── real_abo_analysis_expanded.png  # Expanded dataset comprehensive (3-panel)
+└── filter_nonzero_deltaaf.py    # Filter script for non-zero DeltaAF
+```
 
 ### Notes
-- `src/stats.py` is reserved for benchmark metrics (FST/Tajima’s D/iHS) if we add them; otherwise use external tools and just compare.
-- Plots require matplotlib/seaborn; headless environments may need `MPLBACKEND=Agg`.
-
-### Benchmark helpers (Sheki)
-- `src/stats.py` now provides lightweight baselines: per-site FST (with counts or frequencies), Tajima's D from allele counts within a window, and a toy iHS that consumes precomputed EHH curves.
-- Example FST on a tidy allele-frequency table: 
-  `python - <<'PY'\nimport pandas as pd\nfrom src.stats import fst_from_af_table\n\naf = pd.read_csv('data/example_abo_af.csv')\nfst = fst_from_af_table(af, 'YRI', 'CEU')\nprint(fst.head())\nPY`
-- Tajima's D expects allele counts (2N haplotypes) per site within a window: 
-  `from src.stats import tajimas_d_from_counts`
+- `src/stats.py` is reserved for benchmark metrics (FST/Tajima's D/iHS) if we add them; otherwise use external tools and just compare.
+- Plots require matplotlib/seaborn; headless environments may need `MPLBACKEND=Agg` or `matplotlib.use('Agg')`.

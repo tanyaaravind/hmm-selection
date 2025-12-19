@@ -18,7 +18,9 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 # Go up one level to project root, then into src
 project_root = os.path.dirname(current_dir)
 src_path = os.path.join(project_root, 'src')
-sys.path.append(src_path)
+sys.path.insert(0, src_path)
+
+from hmm_core import SelectionHMM
 
 
 def toy_example():
