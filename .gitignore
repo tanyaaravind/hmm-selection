@@ -27,8 +27,6 @@ data/*.vcf
 data/*.vcf.gz
 data/*.tbi
 results/abo_freqs_demo/
-results/abo_expanded/
-results/abo_freqs/
 
 # Large genomics data
 data/raw_vcf/
