@@ -8,9 +8,13 @@ Applying Hidden Markov Models to Detect Selection on ABO Blood Group Genes Acros
 - Sheki Okwayo (lso24), Junior, Computer Science
 
 ### Scope
-- We are scoping to a 2-state HMM (neutral vs selection) on the ABO locus as the primary result. Balancing-selection state, Rh locus, and full Shen et al. non-homogeneous details are optional/future work.
-- Emissions: per-SNP population differentiation metrics. Current scripts use ΔAF between two populations (e.g., YRI vs CEU); `hmm_core.py` assumes Gaussian emissions over these values. If you swap in FST or another scalar, update the means/stds accordingly.
-- Complex stats (iHS/Tajima’s D/FST computation) can rely on existing tools; `src/stats.py` is a placeholder if needed.
+- Default analysis: 2-state HMM (neutral vs selection) on the ABO locus only. Balancing-selection, Rh locus, or full Shen et al. non-homogeneous features are stretch goals, not required.
+- Emissions: one scalar population-differentiation metric per SNP. Defaults to ΔAF (e.g., |AF_YRI−AF_CEU|); FST can be swapped in. Set the Gaussian means/stds in `hmm_core.py`/scripts to match whichever metric you choose.
+- Heavyweight stats (full iHS/Tajima’s D pipelines) can be pulled from existing tools; `src/stats.py` keeps only lightweight helpers. Use external software if time is short.
+
+### Reporting reminders
+- Clearly state the two hidden states (neutral, selection) and the exact per-SNP emission metric used.
+- If you change emissions (ΔAF vs FST), log the parameter choices for mean/std in the report so readers can interpret the HMM outputs.
 
 ### Overview
 - Two-state HMM in `src/hmm_core.py` detects neutral vs selection signals from differentiation metrics. Forward/backward, Viterbi decoding, and Baum–Welch training are implemented.
@@ -44,3 +48,10 @@ python src/data_prep.py --vcf data/abo_slice.vcf.gz --sample-map data/samples.cs
 ### Notes
 - `src/stats.py` is reserved for benchmark metrics (FST/Tajima’s D/iHS) if we add them; otherwise use external tools and just compare.
 - Plots require matplotlib/seaborn; headless environments may need `MPLBACKEND=Agg`.
+
+### Benchmark helpers (Sheki)
+- `src/stats.py` now provides lightweight baselines: per-site FST (with counts or frequencies), Tajima's D from allele counts within a window, and a toy iHS that consumes precomputed EHH curves.
+- Example FST on a tidy allele-frequency table: 
+  `python - <<'PY'\nimport pandas as pd\nfrom src.stats import fst_from_af_table\n\naf = pd.read_csv('data/example_abo_af.csv')\nfst = fst_from_af_table(af, 'YRI', 'CEU')\nprint(fst.head())\nPY`
+- Tajima's D expects allele counts (2N haplotypes) per site within a window: 
+  `from src.stats import tajimas_d_from_counts`

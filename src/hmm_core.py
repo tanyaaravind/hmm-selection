@@ -1,9 +1,9 @@
 """
-Core Hidden Markov Model for Selection Detection
-Using FST values as observations to detect selection vs neutral evolution
+Core Hidden Markov Model for Selection Detection.
 
-Author: [Your Team]
-Date: December 2024
+Default usage is a 2-state model (neutral vs selection) with one scalar
+population-differentiation metric per SNP (e.g., ΔAF or FST) as emissions.
+Stick to two states unless you intentionally add a third state.
 """
 
 import numpy as np
@@ -19,7 +19,7 @@ class SelectionHMM:
         1 = Selection: Adaptive evolution
     
     Observations:
-        FST values (population differentiation statistic)
+        One scalar population differentiation metric (e.g., ΔAF, FST)
     
     Key Features:
         - Distance-dependent transition probabilities
