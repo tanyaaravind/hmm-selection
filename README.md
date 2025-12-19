@@ -162,6 +162,116 @@ hmm-selection/
 └── filter_nonzero_deltaaf.py    # Filter script for non-zero DeltaAF
 ```
 
+### Reproducibility
+
+This repository is self-contained and all results can be reproduced following the steps below. All code, processed data files, and analysis scripts are included.
+
+#### Data Sources
+
+**Real Data: 1000 Genomes Project Phase 3**
+- **Source**: 1000 Genomes Project Phase 3 (20130502 release)
+- **Repository**: ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/
+- **VCF File**: `ALL.chr9.phase3_shapeit2_mvncall_integrated_v5b.20130502.genotypes.vcf.gz`
+- **Sample Metadata**: `integrated_call_samples_v3.20130502.ALL.panel`
+- **Region Analyzed**: Chromosome 9, ABO locus (chr9:133,240,000-133,290,000)
+- **Populations**: YRI (African), CEU (European), CHB (East Asian)
+
+**Note on Data Files:**
+- Large VCF files (>600MB) are excluded from the repository (see `.gitignore`)
+- Processed data files are included: `results/abo_expanded/` contains all processed CSV files
+- Sample map (`data/samples.csv`) is included for immediate use
+- To regenerate from raw VCF, follow the data preparation steps below
+
+#### Complete Reproduction Pipeline
+
+**Step 1: Install Dependencies**
+```bash
+pip install -r requirements.txt
+conda install -c bioconda cyvcf2  # For VCF parsing
+```
+
+**Step 2: Validate HMM Implementation (Simulated Data)**
+```bash
+# Test with known ground truth
+python tests/test_toy_example.py
+python tests/test_hmm_fit.py
+
+# Generate simulated data figure
+python src/visualization.py
+# Output: results/preliminary_results.png
+```
+
+**Step 3: Process Real Data (if starting from raw VCF)**
+
+If you need to regenerate processed data from raw VCF files:
+
+```bash
+# 3a. Download 1000 Genomes VCF (if not already present)
+# Full chromosome 9 VCF (~614MB):
+# wget ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.chr9.phase3_shapeit2_mvncall_integrated_v5b.20130502.genotypes.vcf.gz
+
+# 3b. Extract ABO region using bcftools
+bcftools view -r 9:133240000-133290000 \
+    data/raw_vcf/ALL.chr9.phase3_shapeit2_mvncall_integrated_v5b.20130502.genotypes.vcf.gz \
+    -Oz -o data/abo_region.vcf.gz
+bcftools index data/abo_region.vcf.gz
+
+# 3c. Create sample map from panel file
+python scripts/create_sample_map.py
+# Output: data/samples.csv
+
+# 3d. Extract allele frequencies and compute DeltaAF
+python src/data_prep.py \
+    --vcf data/abo_region.vcf.gz \
+    --sample-map data/samples.csv \
+    --pop-a YRI \
+    --pop-b CEU \
+    --out results/abo_expanded
+
+# 3e. Filter to non-zero DeltaAF (recommended)
+python filter_nonzero_deltaaf.py \
+    --input results/abo_expanded/delta_af.csv \
+    --output results/abo_expanded/delta_af_nonzero.csv
+```
+
+**Step 4: Generate All Figures**
+
+```bash
+# 4a. Preliminary results (2-panel figures)
+python src/visualization.py
+# Output: results/preliminary_results.png (simulated data)
+
+python src/visualization_expanded.py
+# Output: results/preliminary_results_expanded.png (real data)
+
+# 4b. Comprehensive analysis (3-panel figures)
+python tests/test_abo_data.py
+# Outputs:
+#   - results/real_abo_analysis.png (small dataset, 8 SNPs)
+#   - results/real_abo_analysis_expanded.png (expanded dataset, 648+ SNPs)
+```
+
+#### Included Processed Data
+
+The following processed data files are included in the repository for immediate analysis:
+
+- `results/abo_expanded/allele_frequencies.csv`: Allele frequencies for all populations (YRI, CEU, CHB)
+- `results/abo_expanded/delta_af.csv`: DeltaAF values for all 1831 SNPs
+- `results/abo_expanded/delta_af_nonzero.csv`: Filtered to 648 non-zero DeltaAF SNPs (recommended for analysis)
+- `data/samples.csv`: Sample ID to population mapping (2506 samples)
+
+**Note**: Large raw VCF files are excluded due to size (>600MB). The processed CSV files contain all necessary data for reproducing analyses. To regenerate from raw VCF, use the commands in Step 3 above.
+
+#### Expected Outputs
+
+Running the complete pipeline will generate:
+- `results/preliminary_results.png`: Simulated data validation (2-panel)
+- `results/preliminary_results_expanded.png`: Real data preliminary results (2-panel)
+- `results/real_abo_analysis.png`: Small dataset comprehensive analysis (3-panel, 8 SNPs)
+- `results/real_abo_analysis_expanded.png`: Expanded dataset comprehensive analysis (3-panel, 648 SNPs)
+
+All figures are saved at 300 DPI and can be reproduced exactly by following the steps above.
+
 ### Notes
 - `src/stats.py` is reserved for benchmark metrics (FST/Tajima's D/iHS) if we add them; otherwise use external tools and just compare.
 - Plots require matplotlib/seaborn; headless environments may need `MPLBACKEND=Agg` or `matplotlib.use('Agg')`.
