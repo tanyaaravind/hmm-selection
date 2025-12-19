@@ -166,21 +166,49 @@ hmm-selection/
 
 This repository is self-contained and all results can be reproduced following the steps below. All code, processed data files, and analysis scripts are included.
 
-#### Data Sources
+#### Dataset Explanation & Data Sources
 
-**Real Data: 1000 Genomes Project Phase 3**
+**All allele-frequency data comes from the 1000 Genomes Project Phase 3.** We use two datasets that fit into our analysis pipeline:
+
+**Dataset 1: Initial 8-SNP Test Dataset (Testing Phase)**
+- **Source**: 1000 Genomes Project Phase 3, accessed via **Ensembl REST API** during initial testing
+- **API Base URL**: https://rest.ensembl.org/
+- **API Endpoints Used**:
+  - `GET /overlap/region/human/{region}` - to identify SNPs in ABO region
+  - `GET /variation/human/{rsID}?pops=1` - to retrieve allele frequencies for specific rsIDs
+- **SNPs**: 8 key ABO blood group SNPs:
+  - rs8176749, rs8176746, rs8176747, rs8176743, rs8176740, rs8176719, rs687289, rs505922
+- **Region**: chr9:133,255,801 - 133,273,813 (~18 kb)
+- **Populations**: YRI (African), CEU (European), CHB (East Asian)
+- **Purpose**: Initial validation and testing of HMM implementation
+- **Status**: Data is hardcoded in `tests/test_abo_data.py` for full reproducibility (no API calls needed)
+- **Reproducibility**: The exact allele frequencies are embedded in the code, so results are 100% reproducible
+- **Output**: `results/real_abo_analysis.png` (3-panel comprehensive figure)
+
+**Dataset 2: Expanded ABO Region Dataset (Full Analysis)**
 - **Source**: 1000 Genomes Project Phase 3 (20130502 release)
 - **Repository**: ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/
 - **VCF File**: `ALL.chr9.phase3_shapeit2_mvncall_integrated_v5b.20130502.genotypes.vcf.gz`
 - **Sample Metadata**: `integrated_call_samples_v3.20130502.ALL.panel`
-- **Region Analyzed**: Chromosome 9, ABO locus (chr9:133,240,000-133,290,000)
+- **Region Analyzed**: Chromosome 9, ABO locus (chr9:133,240,000-133,290,000, ~50 kb)
 - **Populations**: YRI (African), CEU (European), CHB (East Asian)
+- **SNPs**: 1831 total variants (648 non-zero DeltaAF after filtering)
+- **Purpose**: Comprehensive analysis with higher SNP density
+- **Processing**: Extracted from VCF using `src/data_prep.py`
+- **Output**: `results/real_abo_analysis_expanded.png` (3-panel comprehensive figure)
+
+**How Datasets Fit Into Pipeline:**
+1. **Testing Phase**: Used 8-SNP dataset (Dataset 1) to validate HMM on small, curated set
+2. **Full Analysis**: Expanded to 1831 SNPs (Dataset 2) for comprehensive region-wide analysis
+3. Both datasets use same populations (YRI, CEU, CHB) and same analysis methods
+4. Results from both are included in final figures for comparison
 
 **Note on Data Files:**
 - Large VCF files (>600MB) are excluded from the repository (see `.gitignore`)
 - Processed data files are included: `results/abo_expanded/` contains all processed CSV files
 - Sample map (`data/samples.csv`) is included for immediate use
-- To regenerate from raw VCF, follow the data preparation steps below
+- Initial 8-SNP dataset is hardcoded in `tests/test_abo_data.py` (no external file needed)
+- To regenerate expanded dataset from raw VCF, follow the data preparation steps below
 
 #### Complete Reproduction Pipeline
 
@@ -201,26 +229,42 @@ python src/visualization.py
 # Output: results/preliminary_results.png
 ```
 
-**Step 3: Process Real Data (if starting from raw VCF)**
+**Step 3: Generate Real Data Analysis Figures**
 
-If you need to regenerate processed data from raw VCF files:
+The 8-SNP dataset is hardcoded and requires no data download. The expanded dataset uses processed CSV files included in the repository.
 
 ```bash
-# 3a. Download 1000 Genomes VCF (if not already present)
+# Generate comprehensive 3-panel figures for both datasets
+python tests/test_abo_data.py
+# Outputs:
+#   - results/real_abo_analysis.png (8-SNP dataset, hardcoded)
+#   - results/real_abo_analysis_expanded.png (expanded dataset, from processed CSV files)
+```
+
+**Step 4: Regenerate Expanded Dataset (Optional - if you need to process from raw VCF)**
+
+If you need to regenerate the expanded dataset from raw VCF files (processed files are already included):
+
+```bash
+# 4a. Download 1000 Genomes VCF (if not already present)
 # Full chromosome 9 VCF (~614MB):
 # wget ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.chr9.phase3_shapeit2_mvncall_integrated_v5b.20130502.genotypes.vcf.gz
 
-# 3b. Extract ABO region using bcftools
+# 4b. Download sample metadata panel file
+# wget ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/integrated_call_samples_v3.20130502.ALL.panel
+
+# 4c. Extract ABO region using bcftools
 bcftools view -r 9:133240000-133290000 \
     data/raw_vcf/ALL.chr9.phase3_shapeit2_mvncall_integrated_v5b.20130502.genotypes.vcf.gz \
     -Oz -o data/abo_region.vcf.gz
 bcftools index data/abo_region.vcf.gz
 
-# 3c. Create sample map from panel file
-python scripts/create_sample_map.py
-# Output: data/samples.csv
+# 4d. Create sample map from panel file
+python scripts/create_sample_map.py \
+    --panel data/integrated_call_samples_v3.20130502.ALL.panel \
+    --output data/samples.csv
 
-# 3d. Extract allele frequencies and compute DeltaAF
+# 4e. Extract allele frequencies and compute DeltaAF
 python src/data_prep.py \
     --vcf data/abo_region.vcf.gz \
     --sample-map data/samples.csv \
@@ -228,39 +272,49 @@ python src/data_prep.py \
     --pop-b CEU \
     --out results/abo_expanded
 
-# 3e. Filter to non-zero DeltaAF (recommended)
+# 4f. Filter to non-zero DeltaAF (recommended)
 python filter_nonzero_deltaaf.py \
     --input results/abo_expanded/delta_af.csv \
     --output results/abo_expanded/delta_af_nonzero.csv
 ```
 
-**Step 4: Generate All Figures**
+**Step 5: Generate All Figures**
 
 ```bash
-# 4a. Preliminary results (2-panel figures)
+# 5a. Preliminary results (2-panel figures)
 python src/visualization.py
 # Output: results/preliminary_results.png (simulated data)
 
 python src/visualization_expanded.py
-# Output: results/preliminary_results_expanded.png (real data)
+# Output: results/preliminary_results_expanded.png (real data, expanded dataset)
 
-# 4b. Comprehensive analysis (3-panel figures)
+# 5b. Comprehensive analysis (3-panel figures)
 python tests/test_abo_data.py
 # Outputs:
-#   - results/real_abo_analysis.png (small dataset, 8 SNPs)
-#   - results/real_abo_analysis_expanded.png (expanded dataset, 648+ SNPs)
+#   - results/real_abo_analysis.png (8-SNP dataset, hardcoded)
+#   - results/real_abo_analysis_expanded.png (expanded dataset, 648+ SNPs from processed CSV)
 ```
 
 #### Included Processed Data
 
 The following processed data files are included in the repository for immediate analysis:
 
-- `results/abo_expanded/allele_frequencies.csv`: Allele frequencies for all populations (YRI, CEU, CHB)
+**Dataset 1 (8-SNP):**
+- Hardcoded in `tests/test_abo_data.py` - no external files needed
+- Allele frequencies for 8 SNPs across YRI, CEU, CHB populations
+- Fully reproducible without any data downloads
+
+**Dataset 2 (Expanded):**
+- `results/abo_expanded/allele_frequencies.csv`: Allele frequencies for all populations (YRI, CEU, CHB) - 1831 SNPs
 - `results/abo_expanded/delta_af.csv`: DeltaAF values for all 1831 SNPs
 - `results/abo_expanded/delta_af_nonzero.csv`: Filtered to 648 non-zero DeltaAF SNPs (recommended for analysis)
-- `data/samples.csv`: Sample ID to population mapping (2506 samples)
+- `data/samples.csv`: Sample ID to population mapping (2506 samples from 1000 Genomes)
 
-**Note**: Large raw VCF files are excluded due to size (>600MB). The processed CSV files contain all necessary data for reproducing analyses. To regenerate from raw VCF, use the commands in Step 3 above.
+**Note on Excluded Files:**
+- Large raw VCF files (>600MB) are excluded due to size (see `.gitignore`)
+- The processed CSV files contain all necessary data for reproducing analyses
+- To regenerate expanded dataset from raw VCF, use the commands in Step 4 above
+- The 8-SNP dataset requires no external files - it's fully self-contained in the code
 
 #### Expected Outputs
 
