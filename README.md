@@ -16,9 +16,9 @@ Applying Hidden Markov Models to Detect Selection on ABO Blood Group Genes Acros
 - Two-state HMM in `src/hmm_core.py` detects neutral vs selection signals from differentiation metrics. Forward/backward, Viterbi decoding, and Baum–Welch training are implemented.
 - Simulations in `src/simulation.py` generate toy SNP series with a known selection segment.
 - Visualization scripts:
-  - `src/visualization.py`: Generates preliminary results figure from simulated data → `results/preliminary_results.png`
-  - `src/visualization_expanded.py`: Main script for real ABO data analysis with HMM → `results/real_abo_analysis_expanded.png`
-  - `tests/test_abo_data.py`: Test script with hardcoded small dataset → `results/real_abo_analysis.png`
+  - `src/visualization.py`: Generates 2-panel preliminary results figure from simulated data → `results/preliminary_results.png`
+  - `src/visualization_expanded.py`: Generates 2-panel preliminary results figure for real ABO data → `results/preliminary_results_expanded.png`
+  - `tests/test_abo_data.py`: Generates comprehensive 3-panel figures for both small and expanded datasets → `results/real_abo_analysis.png` and `results/real_abo_analysis_expanded.png`
 - Data prep in `src/data_prep.py` extracts allele frequencies from 1000 Genomes VCF slices and computes ΔAF tables for specified populations (YRI, CEU, CHB).
 
 ### Quickstart
@@ -41,10 +41,15 @@ python tests/test_toy_example.py
 python tests/test_hmm_fit.py
 ```
 
-#### 3. Generate Simulated Data Figure
+#### 3. Generate Preliminary Results Figures
 ```bash
+# Simulated data (2-panel figure)
 python src/visualization.py
 # Output: results/preliminary_results.png
+
+# Real ABO data (2-panel figure)
+python src/visualization_expanded.py
+# Output: results/preliminary_results_expanded.png
 ```
 
 #### 4. Run Real ABO Data Analysis (Main Workflow)
@@ -62,9 +67,11 @@ python filter_nonzero_deltaaf.py \
     --input results/abo_expanded/delta_af.csv \
     --output results/abo_expanded/delta_af_nonzero.csv
 
-# Step 3: Run HMM analysis and generate visualization
-python src/visualization_expanded.py
-# Output: results/real_abo_analysis_expanded.png
+# Step 3: Generate comprehensive 3-panel analysis figures
+python tests/test_abo_data.py
+# Outputs:
+#   - results/real_abo_analysis.png (small dataset, 8 SNPs)
+#   - results/real_abo_analysis_expanded.png (expanded dataset, 648+ SNPs)
 ```
 
 ### Data Preparation
@@ -97,16 +104,26 @@ python filter_nonzero_deltaaf.py \
     --output results/abo_expanded/delta_af_nonzero.csv
 ```
 
-### Main Analysis Script
+### Visualization Scripts
 
-**`src/visualization_expanded.py`** is the primary script for real data analysis:
-- Loads expanded ABO data (prefers filtered non-zero version)
-- Runs HMM with Forward-Backward algorithm
-- Generates comprehensive 3-panel figure:
+**`src/visualization.py`** - Simulated data preliminary results:
+- Generates 2-panel figure (FST values + HMM posteriors)
+- Uses simulated data with known ground truth
+- Output: `results/preliminary_results.png`
+
+**`src/visualization_expanded.py`** - Real data preliminary results:
+- Generates 2-panel figure (DeltaAF values + HMM posteriors)
+- Uses real ABO data from 1000 Genomes
+- Output: `results/preliminary_results_expanded.png`
+
+**`tests/test_abo_data.py`** - Comprehensive real data analysis:
+- Generates comprehensive 3-panel figures for both datasets:
   1. Allele frequencies across populations (YRI, CEU, CHB)
   2. DeltaAF with highlighting for high-differentiation regions
   3. HMM posterior probabilities of selection state
-- Saves to `results/real_abo_analysis_expanded.png`
+- Outputs:
+  - `results/real_abo_analysis.png` (small dataset, 8 SNPs)
+  - `results/real_abo_analysis_expanded.png` (expanded dataset, 648+ SNPs)
 
 ### Training (Baum–Welch)
 Use `SelectionHMM.fit(observations, positions, n_iter=10)` to re-estimate emission means/stds and a heuristic distance scale. Example:
@@ -138,8 +155,10 @@ hmm-selection/
 │   │   ├── allele_frequencies.csv
 │   │   ├── delta_af.csv
 │   │   └── delta_af_nonzero.csv
-│   ├── preliminary_results.png  # Simulated data figure
-│   └── real_abo_analysis_expanded.png  # Main real data figure
+│   ├── preliminary_results.png  # Simulated data (2-panel)
+│   ├── preliminary_results_expanded.png  # Real data (2-panel)
+│   ├── real_abo_analysis.png  # Small dataset comprehensive (3-panel)
+│   └── real_abo_analysis_expanded.png  # Expanded dataset comprehensive (3-panel)
 └── filter_nonzero_deltaaf.py    # Filter script for non-zero DeltaAF
 ```
 

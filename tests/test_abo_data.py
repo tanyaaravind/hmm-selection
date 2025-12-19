@@ -227,4 +227,18 @@ def create_real_data_figure(snp_ids, positions, deltaaf, posteriors, af_yri, af_
 
 
 if __name__ == "__main__":
+    # Generate figure for small dataset (8 SNPs)
     posteriors = analyze_real_abo_data()
+    
+    # Also generate comprehensive figure for expanded dataset
+    print("\n" + "="*70)
+    print("GENERATING EXPANDED DATASET ANALYSIS")
+    print("="*70)
+    
+    # Import the comprehensive analysis function
+    from visualization_expanded import plot_real_abo_analysis_expanded
+    
+    # Generate comprehensive 3-panel figure for expanded data
+    expanded_fig, expanded_posteriors = plot_real_abo_analysis_expanded(
+        save_path=os.path.join(project_root, 'results', 'real_abo_analysis_expanded.png')
+    )

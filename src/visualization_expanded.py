@@ -1,11 +1,11 @@
 """
-Visualization: Generate Real ABO Analysis Figure for Expanded Data
+Visualization: Generate Preliminary Results for Real ABO Data
 
 This script:
 1. Loads the expanded delta_af.csv data (non-zero filtered)
 2. Runs the HMM to detect selection signals
-3. Creates comprehensive visualization with HMM results
-4. Saves as real_abo_analysis_expanded.png
+3. Creates 2-panel preliminary results figure
+4. Saves as preliminary_results_expanded.png
 
 Author: Amy Oduor
 """
@@ -373,5 +373,137 @@ def plot_real_abo_analysis_expanded(save_path=None):
     return fig, posteriors
 
 
+def plot_preliminary_results_expanded(save_path=None):
+    """
+    Generate 2-panel preliminary results figure for real ABO data (like visualization.py for simulated data)
+    
+    Creates a 2-panel figure showing:
+    1. Observed DeltaAF values along chromosome
+    2. HMM posterior probability of selection state
+    """
+    if save_path is None:
+        save_path = os.path.join(results_path, 'preliminary_results_expanded.png')
+    
+    print("="*60)
+    print("GENERATING PRELIMINARY RESULTS FIGURE (EXPANDED DATA)")
+    print("="*60)
+    
+    # ===== LOAD DATA =====
+    print("\n1. Loading expanded ABO data...")
+    delta_af_path = os.path.join(project_root, 'results', 'abo_expanded', 'delta_af_nonzero.csv')
+    if not os.path.exists(delta_af_path):
+        delta_af_path = os.path.join(project_root, 'results', 'abo_expanded', 'delta_af.csv')
+    
+    if not os.path.exists(delta_af_path):
+        print(f"❌ Error: Could not find data at {delta_af_path}")
+        print("   Make sure you've run data_prep.py first!")
+        return None
+    
+    observations, positions, metadata = load_hmm_data(delta_af_path, pop_a='YRI', pop_b='CEU')
+    
+    print(f"   Loaded {metadata['n_snps']} SNPs")
+    print(f"   Region: {metadata['region_start']:,} - {metadata['region_end']:,} bp")
+    print(f"   DeltaAF range: {observations.min():.3f} - {observations.max():.3f}")
+    
+    # ===== SET UP HMM =====
+    print("2. Initializing HMM...")
+    # Use same parameters as visualization.py for consistency
+    emission_params = {
+        'neutral': {'mean': 0.05, 'std': 0.02},
+        'selection': {'mean': 0.25, 'std': 0.05}
+    }
+    
+    transition_params = {
+        'distance_scale': 2000  # 2kb correlation distance
+    }
+    
+    hmm = SelectionHMM(emission_params, transition_params)
+    
+    # ===== RUN HMM =====
+    print("3. Running Forward-Backward algorithm...")
+    print("   (This may take a moment...)")
+    posteriors = hmm.posterior_probabilities(observations, positions)
+    
+    # ===== CALCULATE STATISTICS =====
+    predicted_states = (posteriors[:, 1] > 0.5).astype(int)
+    n_selection = np.sum(predicted_states)
+    n_neutral = len(predicted_states) - n_selection
+    
+    print(f"4. Results:")
+    print(f"   SNPs predicted as Neutral: {n_neutral} ({n_neutral/len(predicted_states)*100:.1f}%)")
+    print(f"   SNPs predicted as Selection: {n_selection} ({n_selection/len(predicted_states)*100:.1f}%)")
+    
+    # ===== CREATE FIGURE =====
+    print("5. Creating figure...")
+    fig, axes = plt.subplots(2, 1, figsize=(12, 7), sharex=True)
+    
+    # Convert positions to kb for cleaner axis
+    positions_kb = (positions - positions[0]) / 1000
+    
+    # ===== PANEL A: OBSERVED DELTAAF VALUES =====
+    ax1 = axes[0]
+    
+    # Plot DeltaAF values (using exact same styling as visualization.py)
+    ax1.plot(positions_kb, observations, 'o-', color='steelblue', 
+             alpha=0.7, linewidth=1.5, markersize=6, label='Observed ΔAF')
+    
+    # Add reference lines (matching visualization.py values)
+    ax1.axhline(0.05, color='green', linestyle='--', linewidth=2, 
+                alpha=0.7, label='Neutral mean (0.05)')
+    ax1.axhline(0.25, color='red', linestyle='--', linewidth=2, 
+                alpha=0.7, label='Selection mean (0.25)')
+    
+    ax1.set_ylabel('ΔAF (Population Differentiation)', fontsize=11, fontweight='bold')
+    ax1.set_title('Panel A: Observed ΔAF Values Along Chromosome', 
+                  fontsize=12, fontweight='bold')
+    ax1.legend(loc='upper left', fontsize=9, framealpha=0.9)
+    ax1.grid(alpha=0.3)
+    ax1.set_ylim(-0.05, 0.4)
+    
+    # ===== PANEL B: HMM POSTERIOR PROBABILITIES =====
+    ax2 = axes[1]
+    
+    # Plot posterior probability of selection state
+    ax2.plot(positions_kb, posteriors[:, 1], '-', color='red', 
+             linewidth=3, label='P(Selection | Data)')
+    ax2.fill_between(positions_kb, 0, posteriors[:, 1], 
+                     alpha=0.3, color='red')
+    
+    # Add reference line at 0.5 (decision boundary)
+    ax2.axhline(0.5, color='gray', linestyle='--', linewidth=1.5, 
+                alpha=0.7, label='Decision threshold')
+    
+    ax2.set_xlabel('Genomic Position (kb)', fontsize=11, fontweight='bold')
+    ax2.set_ylabel('Posterior Probability', fontsize=11, fontweight='bold')
+    ax2.set_title('Panel B: HMM Posterior Probability of Selection State', 
+                  fontsize=12, fontweight='bold')
+    ax2.legend(loc='upper left', fontsize=9, framealpha=0.9)
+    ax2.grid(alpha=0.3)
+    ax2.set_ylim(-0.05, 1.05)
+    
+    # ===== ADD SUMMARY TEXT =====
+    summary_text = f'SNPs under selection: {n_selection}/{len(observations)} ({n_selection/len(observations)*100:.1f}%)'
+    ax2.text(0.98, 0.05, summary_text, 
+             transform=ax2.transAxes,
+             fontsize=12, fontweight='bold',
+             verticalalignment='bottom', horizontalalignment='right',
+             bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
+    
+    plt.tight_layout()
+    
+    # ===== SAVE FIGURE =====
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    print(f"6. Figure saved to: {save_path}")
+    
+    plt.close()
+    
+    return fig, posteriors
+
+
 if __name__ == "__main__":
-    fig, posteriors = plot_real_abo_analysis_expanded()
+    # Generate 2-panel preliminary results by default
+    fig, posteriors = plot_preliminary_results_expanded()
+    
+    # Uncomment to generate comprehensive 3-panel analysis instead:
+    # fig, posteriors = plot_real_abo_analysis_expanded()
