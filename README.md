@@ -151,6 +151,9 @@ hmm-selection/
 │   └── check_data_size.py       # Check number of SNPs in CSV
 ├── data/                        # Input data (VCF files, sample maps)
 ├── results/                     # Output figures and processed data
+│   ├── abo_freqs/               # Initial 8-SNP dataset
+│   │   ├── allele_frequencies.csv
+│   │   └── delta_af.csv
 │   ├── abo_expanded/            # Expanded ABO dataset
 │   │   ├── allele_frequencies.csv
 │   │   ├── delta_af.csv
@@ -207,7 +210,7 @@ This repository is self-contained and all results can be reproduced following th
 - Large VCF files (>600MB) are excluded from the repository (see `.gitignore`)
 - Processed data files are included: `results/abo_expanded/` contains all processed CSV files
 - Sample map (`data/samples.csv`) is included for immediate use
-- Initial 8-SNP dataset is hardcoded in `tests/test_abo_data.py` (no external file needed)
+- Initial 8-SNP dataset is available in `results/abo_freqs/` CSV files and also hardcoded in `tests/test_abo_data.py`
 - To regenerate expanded dataset from raw VCF, follow the data preparation steps below
 
 #### Complete Reproduction Pipeline
@@ -300,9 +303,10 @@ python tests/test_abo_data.py
 The following processed data files are included in the repository for immediate analysis:
 
 **Dataset 1 (8-SNP):**
-- Hardcoded in `tests/test_abo_data.py` - no external files needed
-- Allele frequencies for 8 SNPs across YRI, CEU, CHB populations
-- Fully reproducible without any data downloads
+- **Files**: `results/abo_freqs/allele_frequencies.csv` and `results/abo_freqs/delta_af.csv`
+- **Also available**: `data/example_abo_af.py` 
+- **Content**: Allele frequencies for 8 SNPs across YRI, CEU, CHB populations
+- **Reproducibility**: CSV files included in repository, fully reproducible without data downloads
 
 **Dataset 2 (Expanded):**
 - `results/abo_expanded/allele_frequencies.csv`: Allele frequencies for all populations (YRI, CEU, CHB) - 1831 SNPs
