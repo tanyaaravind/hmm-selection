@@ -175,5 +175,119 @@ def plot_preliminary_results(save_path=f'{src_path}/preliminary_results.png'):
     return fig, posteriors
 
 
+def plot_synthetic_results_detailed(save_path=f'{src_path}/synthetic_results.png'):
+    """
+    Generate a 3-panel synthetic data figure for the Results section.
+    
+    Panels:
+    1. Observed FST values with true neutral/selection shading
+    2. True vs predicted state labels
+    3. HMM posterior probability of selection state
+    """
+    print("="*60)
+    print("GENERATING SYNTHETIC RESULTS FIGURE (DETAILED)")
+    print("="*60)
+    
+    # ===== GENERATE SIMULATED DATA =====
+    print("\n1. Generating simulated data...")
+    observations, positions, true_states = simulate_selection_region(n_snps=60, seed=7)
+    
+    # ===== SET UP HMM =====
+    print("2. Initializing HMM...")
+    emission_params = {
+        'neutral': {'mean': 0.05, 'std': 0.02},
+        'selection': {'mean': 0.25, 'std': 0.05}
+    }
+    
+    transition_params = {
+        'distance_scale': 2000  # 2kb correlation distance
+    }
+    
+    hmm = SelectionHMM(emission_params, transition_params)
+    
+    # ===== RUN HMM =====
+    print("3. Running Forward-Backward algorithm...")
+    posteriors = hmm.posterior_probabilities(observations, positions)
+    predicted_states = (posteriors[:, 1] > 0.5).astype(int)
+    accuracy = (predicted_states == true_states).mean()
+    
+    # ===== CREATE FIGURE =====
+    print("4. Creating figure...")
+    fig, axes = plt.subplots(3, 1, figsize=(12, 9), sharex=True)
+    
+    # Convert positions to kb for cleaner axis
+    positions_kb = positions / 1000
+    boundary_position = positions_kb[len(positions)//2]
+    
+    # ===== PANEL A: OBSERVED FST VALUES =====
+    ax1 = axes[0]
+    ax1.plot(positions_kb, observations, 'o-', color='steelblue', 
+             alpha=0.7, linewidth=1.5, markersize=5, label='Observed FST')
+    ax1.axhline(0.05, color='green', linestyle='--', linewidth=2, 
+                alpha=0.7, label='Neutral mean (0.05)')
+    ax1.axhline(0.25, color='red', linestyle='--', linewidth=2, 
+                alpha=0.7, label='Selection mean (0.25)')
+    ax1.axvline(boundary_position, color='black', linestyle=':', 
+                linewidth=2, alpha=0.5, label='True selection boundary')
+    ax1.axvspan(0, boundary_position, alpha=0.1, color='green', label='True neutral region')
+    ax1.axvspan(boundary_position, positions_kb[-1], alpha=0.1, 
+                color='red', label='True selection region')
+    ax1.set_ylabel('FST', fontsize=11, fontweight='bold')
+    ax1.set_title('Panel A: Observed FST Values (Synthetic Data)', 
+                  fontsize=12, fontweight='bold')
+    ax1.legend(loc='upper left', fontsize=9, framealpha=0.9)
+    ax1.grid(alpha=0.3)
+    ax1.set_ylim(-0.05, 0.4)
+    
+    # ===== PANEL B: TRUE VS PREDICTED STATES =====
+    ax2 = axes[1]
+    ax2.step(positions_kb, true_states, where='mid', color='black', 
+             linewidth=2, label='True state')
+    ax2.step(positions_kb, predicted_states, where='mid', color='purple', 
+             linewidth=2, linestyle='--', label='Predicted state')
+    ax2.set_ylabel('State (0=Neutral, 1=Selection)', fontsize=11, fontweight='bold')
+    ax2.set_title('Panel B: True vs Predicted States', 
+                  fontsize=12, fontweight='bold')
+    ax2.legend(loc='upper left', fontsize=9, framealpha=0.9)
+    ax2.grid(alpha=0.3)
+    ax2.set_ylim(-0.2, 1.2)
+    
+    # ===== PANEL C: HMM POSTERIOR PROBABILITIES =====
+    ax3 = axes[2]
+    ax3.plot(positions_kb, posteriors[:, 1], '-', color='red', 
+             linewidth=3, label='P(Selection | Data)')
+    ax3.fill_between(positions_kb, 0, posteriors[:, 1], 
+                     alpha=0.3, color='red')
+    ax3.axhline(0.5, color='gray', linestyle='--', linewidth=1.5, 
+                alpha=0.7, label='Decision threshold')
+    ax3.axvline(boundary_position, color='black', linestyle=':', 
+                linewidth=2, alpha=0.5, label='True boundary')
+    ax3.set_xlabel('Genomic Position (kb)', fontsize=11, fontweight='bold')
+    ax3.set_ylabel('Posterior Probability', fontsize=11, fontweight='bold')
+    ax3.set_title('Panel C: HMM Posterior Probability', 
+                  fontsize=12, fontweight='bold')
+    ax3.legend(loc='upper left', fontsize=9, framealpha=0.9)
+    ax3.grid(alpha=0.3)
+    ax3.set_ylim(-0.05, 1.05)
+    
+    ax3.text(0.98, 0.05, f'Accuracy: {accuracy:.1%}', 
+             transform=ax3.transAxes,
+             fontsize=12, fontweight='bold',
+             verticalalignment='bottom', horizontalalignment='right',
+             bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
+    
+    plt.tight_layout()
+    
+    # ===== SAVE FIGURE =====
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    print(f"5. Figure saved to: {save_path}")
+    
+    plt.show()
+    
+    return fig, posteriors
+
+
 if __name__ == "__main__":
     fig, posteriors = plot_preliminary_results()
+    # Uncomment for a 3-panel synthetic results figure:
+    fig, posteriors = plot_synthetic_results_detailed()

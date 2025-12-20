@@ -505,5 +505,4 @@ if __name__ == "__main__":
     # Generate 2-panel preliminary results by default
     fig, posteriors = plot_preliminary_results_expanded()
     
-    # Uncomment to generate comprehensive 3-panel analysis instead:
-    # fig, posteriors = plot_real_abo_analysis_expanded()
+    

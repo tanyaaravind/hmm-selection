@@ -106,10 +106,11 @@ python filter_nonzero_deltaaf.py \
 
 ### Visualization Scripts
 
-**`src/visualization.py`** - Simulated data preliminary results:
-- Generates 2-panel figure (FST values + HMM posteriors)
-- Uses simulated data with known ground truth
-- Output: `results/preliminary_results.png`
+**`src/visualization.py`** - Simulated data visualizations:
+- 2-panel preliminary figure (FST values + HMM posteriors)
+  - Output: `results/preliminary_results.png`
+- 3-panel synthetic results figure (FST values + true vs predicted states + HMM posteriors)
+  - Output: `results/synthetic_results.png`
 
 **`src/visualization_expanded.py`** - Real data preliminary results:
 - Generates 2-panel figure (DeltaAF values + HMM posteriors)
