@@ -102,6 +102,9 @@ def analyze_real_abo_data():
     }
     
     hmm = SelectionHMM(emission_params, transition_params)
+
+    # Optionally refine parameters on the 8-SNP dataset before decoding
+    hmm.fit(observations, positions, n_iter=10, verbose=False)
     
     # Run HMM
     posteriors = hmm.posterior_probabilities(observations, positions)

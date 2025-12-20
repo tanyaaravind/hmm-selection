@@ -316,6 +316,9 @@ def plot_real_abo_analysis_expanded(save_path=None):
     hmm = SelectionHMM(emission_params, transition_params)
     
     # ===== STEP 3: RUN HMM =====
+    print("2b. Running Baum–Welch (EM) to refine parameters...")
+    hmm.fit(observations, positions, n_iter=10, verbose=False)
+
     print("\n3. Running Forward-Backward algorithm...")
     print("   (This may take a moment...)")
     
@@ -420,6 +423,9 @@ def plot_preliminary_results_expanded(save_path=None):
     hmm = SelectionHMM(emission_params, transition_params)
     
     # ===== RUN HMM =====
+    print("2b. Running Baum–Welch (EM) to refine parameters...")
+    hmm.fit(observations, positions, n_iter=10, verbose=False)
+
     print("3. Running Forward-Backward algorithm...")
     print("   (This may take a moment...)")
     posteriors = hmm.posterior_probabilities(observations, positions)
