@@ -1,0 +1,10 @@
+## Optional cleanup helpers (dev-friendly)
+# Use `make -f Makefile.clean clean` to remove generated images and perm CSVs.
+# This intentionally DOES NOT remove `results/benchmark_report.md` or annotated CSVs.
+
+.PHONY: clean
+
+clean:
+	@echo "Removing generated PNGs and permutation CSVs (safe; not removing benchmark_report.md or annotated CSVs)..."
+	@rm -f results/*.png results/perm_*.csv results/fst_hist_*.png results/fst_vs_pos_*.png results/tajimas_*.png || true
+	@echo "Done."

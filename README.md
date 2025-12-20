@@ -7,6 +7,8 @@ Applying Hidden Markov Models to Detect Selection on ABO Blood Group Genes Acros
 - Amy Oduor (aao73), Junior, Computer Science
 - Sheki Okwayo (lso24), Junior, Computer Science
 
+
+
 ### Scope
 - We are scoping to a 2-state HMM (neutral vs selection) on the ABO locus as the primary result. Balancing-selection state, Rh locus, and full Shen et al. non-homogeneous details are optional/future work.
 - Emissions: per-SNP population differentiation metrics. Current scripts use ΔAF (absolute difference in allele frequencies) between two populations (e.g., YRI vs CEU); `hmm_core.py` assumes Gaussian emissions over these values. If you swap in FST or another scalar, update the means/stds accordingly.
@@ -73,6 +75,55 @@ python tests/test_abo_data.py
 #   - results/real_abo_analysis.png (small dataset, 8 SNPs)
 #   - results/real_abo_analysis_expanded.png (expanded dataset, 648+ SNPs)
 ```
+
+
+#### 5. Benchmarking & report
+
+Run the commands below to reproduce the deliverables. All outputs go to `results/`.
+
+- Install dependencies:
+  ```bash
+  pip install -r requirements.txt
+  # (requests, seaborn, cyvcf2 optional)
+  ```
+
+- Quick run (FST + Tajima's D):
+  ```bash
+  python scripts/run_benchmarks.py
+  # -> results/benchmarks_fst_yri_ceu.csv, results/benchmarks_tajimas_yri.csv
+  ```
+
+- Full run (FST for all pairs, plots, sliding Tajima's D, analysis):
+  ```bash
+  python scripts/benchmark_and_plot.py
+  # -> CSVs, plots, and results/benchmark_analysis.md
+  ```
+
+- Annotate top sites:
+  ```bash
+  python scripts/annotate_top_fst.py --fst results/benchmarks_fst_yri_ceu.csv --top 20 --chrom 9
+  # -> results/benchmarks_fst_yri_ceu_top20_annotated.csv
+  ```
+
+- report (already generated): `results/benchmark_report.md` (includes key plots and permutation summaries).
+
+All scripts are in `scripts/` and primary outputs are in `results/`.
+
+### Quick grader checklist (recommended)
+
+Run the minimal reproducible pipeline:
+
+```bash
+make benchmarks   # runs full benchmark_and_plot pipeline
+make report       # generates concise markdown report (results/benchmark_report.md)
+make verify       # quick check that key outputs exist
+```
+
+All outputs are saved in `results/` and the concise report is `results/benchmark_report.md`.
+
+Notes:
+- The annotation script falls back gracefully if Ensembl REST is unreachable (`annotation_status=api-failed` in the CSV). If you prefer offline annotation, point me to a local GTF and I can add GTF-based annotation.
+- All generated CSVs and images are saved under `results/`.
 
 ### Data Preparation
 
