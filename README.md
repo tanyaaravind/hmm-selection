@@ -36,6 +36,8 @@ conda install -c bioconda cyvcf2
 
 #### 2. Run Validation Tests
 ```bash
+cd selection_hmm
+
 # Toy example with known ground truth
 python tests/test_toy_example.py
 
