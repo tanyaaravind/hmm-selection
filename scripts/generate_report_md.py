@@ -1,16 +1,5 @@
 #!/usr/bin/env python3
-"""Generate a concise Markdown report for graders from analysis artifacts.
 
-Produces:
-- results/benchmark_report.md
-
-Includes:
-- Short summary (Methods + Conclusion excerpt)
-- Embedded plots (as relative links)
-- Top annotated sites table (first 20 rows)
-- Permutation test summaries (extracted from benchmarkanalysis.md)
-- Links to detailed files
-"""
 from pathlib import Path
 import pandas as pd
 
@@ -29,14 +18,12 @@ plots = [
 
 ann_csv = OUT / 'benchmarks_fst_yri_ceu_top20_annotated.csv'
 
-# Read benchmarkanalysis.md and extract Methods, Conclusion, Permutation section
 text = MD_SRC.read_text() if MD_SRC.exists() else ''
 
 def excerpt_section(text, header):
     if header not in text:
         return ''
     part = text.split(header,1)[1]
-    # stop at next '## '
     if '\n## ' in part:
         part = part.split('\n## ',1)[0]
     return part.strip()
@@ -75,7 +62,6 @@ if ann_csv.exists():
     ann = pd.read_csv(ann_csv)
     cols = [c for c in ['pos','fst','gene_name','annotation_status','known_rs'] if c in ann.columns]
     ann = ann[cols].head(20)
-    # convert to markdown table
     lines.append(ann.to_markdown(index=False))
 else:
     lines.append('No annotation CSV found.')

@@ -1,13 +1,5 @@
 #!/usr/bin/env python3
-"""Annotate top FST sites with gene features using Ensembl REST API.
 
-Usage:
-  python scripts/annotate_top_fst.py --fst results/benchmarks_fst_yri_ceu.csv --top 20
-
-Notes:
-- Attempts to query Ensembl REST; if offline, outputs a CSV with `annotation_status=api-failed` and NA fields.
-- If you have a local GTF, re-run by providing --gtf /path/to.gtf (not implemented yet).
-"""
 from pathlib import Path
 import argparse
 import pandas as pd
@@ -34,7 +26,6 @@ def annotate_positions(chrom: str, positions: pd.Series, pause=0.2):
                 if len(data) == 0:
                     rows.append({"pos": int(pos), "annotated": False, "gene_id": None, "gene_name": None, "biotype": None, "start": None, "end": None, "strand": None, "annotation_status": "no-gene"})
                 else:
-                    # pick first overlapping gene (there may be multiple)
                     g = data[0]
                     rows.append({
                         "pos": int(pos),

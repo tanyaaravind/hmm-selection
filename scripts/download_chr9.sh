@@ -1,12 +1,10 @@
 #!/bin/bash
-# Script to download chromosome 9 VCF from 1000 Genomes
 
 cd "$(dirname "$0")/../data/raw_vcf" || exit 1
 
 echo "Attempting to download chromosome 9 VCF from 1000 Genomes..."
 echo ""
 
-# Try v5b first (most common)
 echo "Trying v5b version..."
 if wget ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.chr9.phase3_shapeit2_mvncall_integrated_v5b.20130502.genotypes.vcf.gz; then
     echo "✅ Successfully downloaded v5b VCF file!"
@@ -23,7 +21,6 @@ else
     fi
 fi
 
-# Download index file
 echo ""
 echo "Downloading index file..."
 if wget ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ALL.chr9.phase3_shapeit2_mvncall_integrated_${VERSION}.20130502.genotypes.vcf.gz.tbi; then
@@ -32,7 +29,6 @@ else
     echo "⚠️  Index file download failed, but VCF file is available"
 fi
 
-# Verify download
 echo ""
 echo "Verifying download..."
 if [ -f "ALL.chr9.phase3_shapeit2_mvncall_integrated_${VERSION}.20130502.genotypes.vcf.gz" ]; then

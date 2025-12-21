@@ -1,12 +1,5 @@
 #!/usr/bin/env python3
-"""Produce comparative visual analysis and write a markdown report.
 
-Outputs:
-- results/fst_comparison.png
-- results/fst_pair_stats.csv
-- results/tajimas_yri_overlap_summary.csv
-- appends to results/benchmark_report.md
-"""
 from pathlib import Path
 import pandas as pd
 import numpy as np
@@ -18,7 +11,6 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "results"
 OUT.mkdir(exist_ok=True)
 
-# Input files
 fst_files = {
     "YRI_vs_CEU": OUT / "benchmarks_fst_yri_ceu.csv",
     "YRI_vs_CHB": OUT / "benchmarks_fst_yri_chb.csv",
@@ -59,12 +51,10 @@ def analyze_annotations(annot_path):
 
 def tajima_overlap_analysis(td_path, delta_threshold=None):
     td = pd.read_csv(td_path)
-    # td has overlap_high_delta boolean
     td_clean = td.dropna(subset=['tajimas_d'])
     overlap = td_clean[td_clean['overlap_high_delta'] == True]['tajimas_d']
     nonoverlap = td_clean[td_clean['overlap_high_delta'] == False]['tajimas_d']
 
-    # summary stats
     summary = {
         'overlap_n': int(len(overlap)),
         'overlap_mean': float(np.nanmean(overlap)),
@@ -74,7 +64,6 @@ def tajima_overlap_analysis(td_path, delta_threshold=None):
         'nonoverlap_median': float(np.nanmedian(nonoverlap)),
     }
 
-    # statistical test (Mann-Whitney U, non-parametric)
     try:
         u_res = stats.mannwhitneyu(overlap, nonoverlap, alternative='two-sided')
         summary['mw_u'] = float(u_res.statistic)
@@ -120,7 +109,6 @@ def write_markdown(summary_stats, annot_counts, ann_table, tajima_summary, png_p
     lines.append('\n')
     lines.append('### Quick interpretation')
     lines.append('\n')
-    # Interpret
     lines.append('- The violin plot shows distributional differences across population pairs; YRI vs CHB often shows larger FST tail values within this ABO region.\n')
     lines.append('- Most top FST sites overlap the `ABO` gene (expected given region-focused analysis); a few high-FST positions did not overlap annotated genes and warrant further inspection for regulatory elements or structural variation.\n')
     lines.append("- Tajima's D in windows overlapping high DeltaAF positions has mean/median as reported above; the Mann–Whitney U test p-value indicates whether the distributions differ significantly (see `tajimas_yri_overlap_summary.csv`).\n")
@@ -130,7 +118,6 @@ def write_markdown(summary_stats, annot_counts, ann_table, tajima_summary, png_p
     lines.append(f'- Per-pair histograms and per-site plots are in `results/` with names starting `fst_hist_` and `fst_vs_pos_`.')
     lines.append(f"- Tajima's D sliding plot: `results/tajimas_yri_sliding_w50_s10.png` (windows overlapping top ΔAF marked in red).")
 
-    # Append to combined report
     with out.open('a') as f:
         f.write('\n---\n')
         f.write('\n'.join(lines))

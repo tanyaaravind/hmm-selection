@@ -1,14 +1,5 @@
 #!/usr/bin/env python3
-"""Run FST benchmarks across multiple pairs, plot results, and compute Tajima's D sliding windows with annotations.
 
-Outputs (under results/):
-- benchmarks_fst_<A>_<B>.csv
-- fst_hist_<A>_<B>.png
-- fst_vs_pos_<A>_<B>.png
-- benchmarks_tajimas_yri_sliding.csv
-- tajimas_yri_sliding.png
-- results/benchmark_analysis.md
-"""
 from pathlib import Path
 import sys
 import numpy as np
@@ -35,7 +26,6 @@ def compute_and_plot_fst(pop_a: str, pop_b: str):
     out_csv = OUT / f"benchmarks_fst_{pop_a.lower()}_{pop_b.lower()}.csv"
     fst_df.to_csv(out_csv, index=False)
 
-    # Histogram
     plt.figure(figsize=(6, 4))
     sns.histplot(fst_df["fst"].clip(lower=0), bins=60, kde=False)
     plt.title(f"FST distribution: {pop_a} vs {pop_b}")
@@ -46,7 +36,6 @@ def compute_and_plot_fst(pop_a: str, pop_b: str):
     plt.savefig(hist_png)
     plt.close()
 
-    # FST vs position (aggregate by pos; pivot has chrom,pos)
     plt.figure(figsize=(8, 3))
     plt.plot(fst_df["pos"], fst_df["fst"], marker=".", linestyle="", markersize=3)
     top10 = fst_df.sort_values("fst", ascending=False).head(10)
@@ -74,7 +63,6 @@ def tajimas_sliding_and_annotate(window_size=50, step=10, top_delta_pct=95):
     alt_counts = yri["alt_count"].values
     total = yri["total_alleles"].values
 
-    # thresholds for high deltaAF
     thresh = np.percentile(delta["delta_af"].values, top_delta_pct)
     high_delta_pos = set(delta[delta["delta_af"] >= thresh]["pos"].values)
 
@@ -101,10 +89,8 @@ def tajimas_sliding_and_annotate(window_size=50, step=10, top_delta_pct=95):
     td_out = OUT / f"benchmarks_tajimas_yri_sliding_w{window_size}_s{step}.csv"
     td_df.to_csv(td_out, index=False)
 
-    # Plot
     plt.figure(figsize=(10, 3))
     plt.plot(td_df["mid_pos"], td_df["tajimas_d"], marker="o", linestyle="-")
-    # Shade windows overlapping high-delta
     for _, row in td_df[td_df["overlap_high_delta"]].iterrows():
         plt.axvspan(row["start_pos"], row["end_pos"], color="red", alpha=0.12)
     plt.title(f"Tajima's D (YRI) — window={window_size}, step={step}")

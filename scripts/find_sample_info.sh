@@ -1,10 +1,8 @@
 #!/bin/bash
-# Script to find the correct path for 1000 Genomes sample metadata
 
 echo "Searching for sample metadata files on 1000 Genomes FTP..."
 echo ""
 
-# Try different possible paths
 PATHS=(
     "/vol1/ftp/technical/working/20130606_sample_info"
     "/vol1/ftp/release/20130502/integrated_call_samples_v3.20130502.ALL.panel"

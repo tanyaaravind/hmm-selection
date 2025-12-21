@@ -1,20 +1,5 @@
 #!/usr/bin/env python3
-"""Permutation/background tests for benchmarking results.
 
-Performs:
-- Max-FST permutation test for top-K sites (observed vs random sets)
-- Gene-overlap permutation test (how many of top-K fall in gene region vs random)
-- Tajima's D label permutation (mean difference overlap vs non-overlap)
-
-Outputs (under results/):
-- results/perm_max_fst_top20.csv
-- results/perm_max_fst_top20.png
-- results/perm_gene_overlap_top20.csv
-- results/perm_gene_overlap_top20.png
-- results/perm_tajimas_diff.csv
-- results/perm_tajimas_diff.png
-- Appends a detailed section to results/benchmarkanalysis.md summarizing results and interpretation
-"""
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -48,11 +33,9 @@ def max_fst_perm(k=20, nperm=5000):
 
     pval = (np.sum(maxs >= observed_max) + 1) / (nperm + 1)
 
-    # save distribution
     df = pd.DataFrame({'perm_max_fst': maxs})
     df.to_csv(OUT / 'perm_max_fst_top20.csv', index=False)
 
-    # plot
     plt.figure(figsize=(6,4))
     sns.histplot(maxs, bins=50, kde=False)
     plt.axvline(observed_max, color='red', linestyle='--', label=f'observed max={observed_max:.4f}')
@@ -68,19 +51,16 @@ def max_fst_perm(k=20, nperm=5000):
 
 def gene_overlap_perm(k=20, nperm=5000):
     top_ann = pd.read_csv(TOP_ANN)
-    # get gene region from annotated ABO entries if present
     abo_rows = top_ann[top_ann['gene_name'] == 'ABO']
     if not abo_rows.empty:
         gene_start = int(abo_rows['start'].min())
         gene_end = int(abo_rows['end'].max())
     else:
-        # fallback: infer gene bounds from annotated file (if no ABO) -> use min/max of annotated starts
         ann_all = top_ann.dropna(subset=['start','end'])
         if not ann_all.empty:
             gene_start = int(ann_all['start'].min())
             gene_end = int(ann_all['end'].max())
         else:
-            # cannot determine gene bounds
             gene_start = None
             gene_end = None
 
@@ -105,7 +85,6 @@ def gene_overlap_perm(k=20, nperm=5000):
 
     pd.DataFrame({'perm_counts': counts}).to_csv(OUT / 'perm_gene_overlap_top20.csv', index=False)
 
-    # plot
     plt.figure(figsize=(6,4))
     sns.histplot(counts, bins=range(counts.min(), counts.max()+2), discrete=True)
     plt.axvline(observed_count, color='red', linestyle='--', label=f'observed count={observed_count}')
@@ -134,7 +113,6 @@ def tajima_label_perm(nperm=5000):
         perm = np.random.permutation(labels)
         perm_overlap = td_clean['tajimas_d'].values[perm == True]
         perm_non = td_clean['tajimas_d'].values[perm == False]
-        # handle empty
         if len(perm_overlap) == 0 or len(perm_non) == 0:
             diffs[i] = 0.0
         else:
@@ -195,7 +173,6 @@ def append_results_to_md(max_res, gene_res, taj_res):
     lines.append('- Small permutation p-values (e.g., < 0.05) indicate that the observed statistic is unlikely under random draws from the region and therefore may be indicative of a localized signal rather than chance.\n')
     lines.append('- Remember: these tests are **local** to the ABO region and compare against random draws from the same site set; for genome-wide significance, compare to genome-wide matched backgrounds.\n')
 
-    # Append to combined report
     with md.open('a') as f:
         f.write('\n---\n')
         f.write('\n'.join(lines))

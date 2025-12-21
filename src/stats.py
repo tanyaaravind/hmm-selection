@@ -1,17 +1,3 @@
-"""
-Lightweight benchmarking utilities for Sheki's comparison baselines.
-
-The real pipelines for FST / Tajima's D / iHS are complex; these helpers
-keep things simple and transparent for quick plots/tables on small ABO
-regions or simulated data.
-
-Key entry points
-----------------
-- compute_pairwise_fst(alt_counts_a, total_a, alt_counts_b, total_b)
-- fst_from_af_table(af_df, pop_a, pop_b)
-- tajimas_d_from_counts(alt_counts, total_alleles)
-- ihs_from_ehh(positions, ehh_ref, ehh_alt)
-"""
 
 from __future__ import annotations
 
@@ -33,18 +19,7 @@ def compute_pairwise_fst(
     alt_counts_b: Iterable[float],
     total_alleles_b: Iterable[float],
 ) -> np.ndarray:
-    """
-    Per-site FST (Hudson-esque) using allele counts from two populations.
-
-    Parameters
-    ----------
-    alt_counts_a, alt_counts_b : allele counts for the alt allele.
-    total_alleles_a, total_alleles_b : total haplotypes (2N) contributing to each site.
-
-    Returns
-    -------
-    np.ndarray of FST values for each site; zeros where the site is monomorphic.
-    """
+    
     alt_a = _safe_array(alt_counts_a)
     alt_b = _safe_array(alt_counts_b)
     tot_a = _safe_array(total_alleles_a)
@@ -53,33 +28,22 @@ def compute_pairwise_fst(
     if not (len(alt_a) == len(alt_b) == len(tot_a) == len(tot_b)):
         raise ValueError("Input arrays must be the same length.")
 
-    # Allele frequencies
     p1 = np.divide(alt_a, tot_a, out=np.zeros_like(alt_a, dtype=float), where=tot_a > 0)
     p2 = np.divide(alt_b, tot_b, out=np.zeros_like(alt_b, dtype=float), where=tot_b > 0)
     p_bar = (p1 * tot_a + p2 * tot_b) / np.maximum(tot_a + tot_b, 1e-9)
 
-    # Hudson-style numerator/denominator; avoid division by zero
     num = (p1 - p2) ** 2 - (p1 * (1 - p1) / np.maximum(tot_a - 1, 1e-9)) - (
         p2 * (1 - p2) / np.maximum(tot_b - 1, 1e-9)
     )
     den = p_bar * (1 - p_bar)
 
     fst = np.divide(num, den, out=np.zeros_like(num), where=den > 0)
-    fst[fst < 0] = 0.0  # clip small negatives from finite-sample correction
+    fst[fst < 0] = 0.0 
     return fst
 
 
 def fst_from_af_table(af_df: pd.DataFrame, pop_a: str, pop_b: str) -> pd.DataFrame:
-    """
-    Compute FST for each site from a tidy allele-frequency table.
 
-    The table can come from `data_prep.py`. Columns required:
-    chrom, pos, pop, af [, alt_count, total_alleles]
-
-    If counts are available we use the Hudson-esque estimator above.
-    Otherwise we fall back to a simple frequency-only estimator:
-        FST = (p1 - p2)^2 / (2 * p_bar * (1 - p_bar))
-    """
     required_cols = {"chrom", "pos", "pop", "af"}
     if not required_cols.issubset(af_df.columns):
         missing = ", ".join(sorted(required_cols - set(af_df.columns)))
@@ -87,7 +51,7 @@ def fst_from_af_table(af_df: pd.DataFrame, pop_a: str, pop_b: str) -> pd.DataFra
 
     subset = af_df[af_df["pop"].isin([pop_a, pop_b])]
     pivot = subset.pivot_table(index=["chrom", "pos"], columns="pop", values="af")
-    pivot = pivot.dropna(subset=[pop_a, pop_b])  # keep shared sites only
+    pivot = pivot.dropna(subset=[pop_a, pop_b])
     pivot = pivot.reset_index()
 
     has_counts = {"alt_count", "total_alleles"}.issubset(af_df.columns)
@@ -116,15 +80,7 @@ def fst_from_af_table(af_df: pd.DataFrame, pop_a: str, pop_b: str) -> pd.DataFra
 
 
 def tajimas_d_from_counts(alt_counts: Iterable[int], total_alleles: Iterable[int]) -> float:
-    """
-    Tajima's D for a single window using allele counts.
 
-    Notes
-    -----
-    - `total_alleles` should be the same for all sites within the window
-      (2N haplotypes). If it varies slightly we use the mean.
-    - Sites that are monomorphic (p==0 or p==1) are ignored.
-    """
     alt = _safe_array(alt_counts)
     total = _safe_array(total_alleles)
 
@@ -141,7 +97,6 @@ def tajimas_d_from_counts(alt_counts: Iterable[int], total_alleles: Iterable[int
     if s == 0:
         return 0.0
 
-    # Average pairwise differences (pi)
     pi = np.sum(2 * freqs[segregating] * (1 - freqs[segregating]))
 
     a1 = np.sum(1 / np.arange(1, n))
@@ -164,20 +119,7 @@ def ihs_from_ehh(
     ehh_ref: Iterable[float],
     ehh_alt: Iterable[float],
 ) -> Tuple[float, float, float]:
-    """
-    Compute a toy iHS given integrated haplotype homozygosity (EHH) curves.
 
-    Parameters
-    ----------
-    positions : genomic coordinates (must be sorted)
-    ehh_ref : EHH curve for the reference allele
-    ehh_alt : EHH curve for the alternate allele
-
-    Returns
-    -------
-    (i_ref, i_alt, ihs) where i_ref/i_alt are the trapezoid integrals and
-    ihs is log(i_ref / i_alt). Values are finite if both integrals > 0.
-    """
     pos = _safe_array(positions)
     ref = _safe_array(ehh_ref)
     alt = _safe_array(ehh_alt)

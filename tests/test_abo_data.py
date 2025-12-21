@@ -1,9 +1,3 @@
-"""
-Real Data Analysis: ABO Locus from 1000 Genomes
-
-Apply our HMM to real ABO SNP data provided by groupmate.
-This will be our SECOND preliminary result!
-"""
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -11,7 +5,6 @@ import seaborn as sns
 import sys
 import os
 
-# Add src to path (using relative import)
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(current_dir)
 src_path = os.path.join(project_root, 'src')
@@ -19,23 +12,16 @@ sys.path.append(src_path)
 
 from hmm_core import SelectionHMM
 
-# Set style
 sns.set_style("whitegrid")
 plt.rcParams['figure.dpi'] = 100
 plt.rcParams['font.size'] = 10
 
 
 def analyze_real_abo_data():
-    """
-    Analyze real ABO SNP data from 1000 Genomes
-    """
     print("="*70)
     print("REAL DATA ANALYSIS: ABO Blood Type Locus")
     print("="*70)
-    
-    # ===== REAL DATA FROM GROUPMATE =====
-    # 8 SNPs from ABO locus (chr9: 133,255,801 - 133,273,813)
-    
+
     snp_ids = [
         'rs8176749', 'rs8176746', 'rs8176747', 'rs8176743',
         'rs8176740', 'rs8176719', 'rs687289', 'rs505922'
@@ -46,13 +32,10 @@ def analyze_real_abo_data():
         133256085, 133257521, 133261703, 133273813
     ])
     
-    # Allele frequencies in three populations
-    af_yri = np.array([0.829, 0.829, 0.829, 0.829, 0.806, 0.769, 0.606, 0.690])  # African
-    af_ceu = np.array([0.929, 0.929, 0.929, 0.929, 0.722, 0.621, 0.621, 0.631])  # European
-    af_chb = np.array([0.772, 0.772, 0.772, 0.772, 0.767, 0.607, 0.602, 0.602])  # East Asian
+    af_yri = np.array([0.829, 0.829, 0.829, 0.829, 0.806, 0.769, 0.606, 0.690])
+    af_ceu = np.array([0.929, 0.929, 0.929, 0.929, 0.722, 0.621, 0.621, 0.631])
+    af_chb = np.array([0.772, 0.772, 0.772, 0.772, 0.767, 0.607, 0.602, 0.602])
     
-    # DeltaAF (population differentiation) = |AF_YRI - AF_CEU|
-    # This is our observation sequence (similar to FST)
     observations = np.array([0.101, 0.101, 0.101, 0.101, 0.083, 0.147, 0.015, 0.059])
     
     print("\nDataset Summary:")
@@ -71,7 +54,6 @@ def analyze_real_abo_data():
               f"{af_chb[i]:>8.3f} {observations[i]:>8.3f}")
     print("-"*70)
     
-    # ===== BIOLOGICAL INTERPRETATION =====
     print("\n" + "="*70)
     print("BIOLOGICAL PATTERN:")
     print("="*70)
@@ -84,32 +66,25 @@ def analyze_real_abo_data():
     print("\nThis pattern suggests SELECTION in the first part of the region,")
     print("with a peak at rs8176719, followed by return to neutrality.")
     
-    # ===== SET UP HMM =====
     print("\n" + "="*70)
     print("RUNNING HMM ANALYSIS")
     print("="*70)
     
-    # Emission parameters based on the data
-    # Mean DeltaAF for "neutral-like" = ~0.015-0.059
-    # Mean DeltaAF for "selection-like" = ~0.101-0.147
+
     emission_params = {
-        'neutral': {'mean': 0.04, 'std': 0.03},     # Low population differentiation
-        'selection': {'mean': 0.12, 'std': 0.03}    # High population differentiation
+        'neutral': {'mean': 0.04, 'std': 0.03},
+        'selection': {'mean': 0.12, 'std': 0.03}
     }
     
     transition_params = {
-        'distance_scale': 2000  # 2kb - reasonable for this small region
+        'distance_scale': 2000
     }
     
     hmm = SelectionHMM(emission_params, transition_params)
-
-    # Optionally refine parameters on the 8-SNP dataset before decoding
     hmm.fit(observations, positions, n_iter=10, verbose=False)
     
-    # Run HMM
     posteriors = hmm.posterior_probabilities(observations, positions)
     
-    # ===== DISPLAY RESULTS =====
     print("\n" + "="*70)
     print("HMM RESULTS: Posterior Probabilities")
     print("="*70)
@@ -123,7 +98,6 @@ def analyze_real_abo_data():
     
     print("="*70)
     
-    # ===== CREATE VISUALIZATION =====
     print("\nGenerating visualization...")
     fig = create_real_data_figure(snp_ids, positions, observations, posteriors, af_yri, af_ceu, af_chb)
     
@@ -135,16 +109,11 @@ def analyze_real_abo_data():
 
 
 def create_real_data_figure(snp_ids, positions, deltaaf, posteriors, af_yri, af_ceu, af_chb):
-    """
-    Create comprehensive figure for real ABO data analysis
-    """
+
     fig = plt.figure(figsize=(14, 10))
     gs = fig.add_gridspec(3, 1, height_ratios=[1, 1, 1.2], hspace=0.35)
     
-    # Convert positions to kb for cleaner display
-    pos_kb = (positions - positions[0]) / 1000  # Relative position in kb
-    
-    # ===== PANEL A: ALLELE FREQUENCIES =====
+    pos_kb = (positions - positions[0]) / 1000
     ax1 = fig.add_subplot(gs[0])
     
     ax1.plot(pos_kb, af_yri, 'o-', color='#E64B35', linewidth=2, markersize=8, 
@@ -161,19 +130,15 @@ def create_real_data_figure(snp_ids, positions, deltaaf, posteriors, af_yri, af_
     ax1.grid(alpha=0.3)
     ax1.set_ylim(0.5, 1.0)
     
-    # ===== PANEL B: POPULATION DIFFERENTIATION (DeltaAF) =====
     ax2 = fig.add_subplot(gs[1])
     
-    # Plot DeltaAF values
     ax2.plot(pos_kb, deltaaf, 'o-', color='purple', linewidth=2.5, 
              markersize=10, label='ΔAF = |AF_YRI - AF_CEU|', alpha=0.8)
     
-    # Highlight the peak at rs8176719
-    peak_idx = 5  # rs8176719
+    peak_idx = 5
     ax2.plot(pos_kb[peak_idx], deltaaf[peak_idx], 'o', color='red', 
              markersize=15, alpha=0.5, label='rs8176719 (peak)')
     
-    # Add reference lines
     ax2.axhline(0.04, color='green', linestyle='--', linewidth=1.5, 
                 alpha=0.6, label='Neutral-like (<0.06)')
     ax2.axhline(0.10, color='red', linestyle='--', linewidth=1.5, 
@@ -186,24 +151,18 @@ def create_real_data_figure(snp_ids, positions, deltaaf, posteriors, af_yri, af_
     ax2.grid(alpha=0.3)
     ax2.set_ylim(0, 0.18)
     
-    # ===== PANEL C: HMM POSTERIOR PROBABILITIES =====
     ax3 = fig.add_subplot(gs[2])
-    
-    # Plot posterior probabilities
     ax3.plot(pos_kb, posteriors[:, 1], '-', color='red', linewidth=3, 
              label='P(Selection | Data)')
     ax3.fill_between(pos_kb, 0, posteriors[:, 1], alpha=0.3, color='red')
-    
-    # Add markers for each SNP
+
     ax3.plot(pos_kb, posteriors[:, 1], 'o', color='darkred', markersize=10, alpha=0.7)
     
-    # Decision threshold
     ax3.axhline(0.5, color='gray', linestyle='--', linewidth=1.5, 
                 alpha=0.7, label='Decision threshold (0.5)')
     
-    # Annotate SNPs
     for i, (x, y, snp) in enumerate(zip(pos_kb, posteriors[:, 1], snp_ids)):
-        if y > 0.5:  # Only annotate selection SNPs
+        if y > 0.5:
             ax3.annotate(snp, xy=(x, y), xytext=(0, 10), 
                         textcoords='offset points', fontsize=8,
                         ha='center', rotation=45, alpha=0.7)
@@ -216,7 +175,6 @@ def create_real_data_figure(snp_ids, positions, deltaaf, posteriors, af_yri, af_
     ax3.grid(alpha=0.3)
     ax3.set_ylim(-0.05, 1.05)
     
-    # Add summary statistics box
     n_selection = sum(posteriors[:, 1] > 0.5)
     summary_text = f'SNPs identified as under selection: {n_selection}/8'
     ax3.text(0.02, 0.95, summary_text, transform=ax3.transAxes,
@@ -230,18 +188,14 @@ def create_real_data_figure(snp_ids, positions, deltaaf, posteriors, af_yri, af_
 
 
 if __name__ == "__main__":
-    # Generate figure for small dataset (8 SNPs)
     posteriors = analyze_real_abo_data()
     
-    # Also generate comprehensive figure for expanded dataset
     print("\n" + "="*70)
     print("GENERATING EXPANDED DATASET ANALYSIS")
     print("="*70)
     
-    # Import the comprehensive analysis function
     from visualization_expanded import plot_real_abo_analysis_expanded
     
-    # Generate comprehensive 3-panel figure for expanded data
     expanded_fig, expanded_posteriors = plot_real_abo_analysis_expanded(
         save_path=os.path.join(project_root, 'results', 'real_abo_analysis_expanded.png')
     )

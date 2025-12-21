@@ -1,11 +1,3 @@
-"""
-Quick FST plot for the example ABO allele-frequency table.
-
-Outputs a small line/point plot of per-site FST for each population pair.
-
-Usage:
-  python src/plot_fst.py --af data/example_abo_af.csv --out results/fst_abo_example.png
-"""
 
 import argparse
 import os
@@ -19,7 +11,6 @@ from stats import fst_from_af_table
 
 
 def compute_pairs(af_df: pd.DataFrame, pairs: List[Tuple[str, str]]) -> pd.DataFrame:
-    """Compute FST for each population pair and return a tidy dataframe."""
     frames = []
     for a, b in pairs:
         fst_df = fst_from_af_table(af_df, a, b)
@@ -29,11 +20,9 @@ def compute_pairs(af_df: pd.DataFrame, pairs: List[Tuple[str, str]]) -> pd.DataF
 
 
 def plot_fst(fst_df: pd.DataFrame, out_path: str):
-    """Plot per-site FST for each pair and save to out_path."""
     sns.set_style("whitegrid")
     plt.figure(figsize=(10, 4))
 
-    # Convert positions to kb relative to start for readability
     start = fst_df["pos"].min()
     fst_df = fst_df.copy()
     fst_df["pos_kb"] = (fst_df["pos"] - start) / 1000

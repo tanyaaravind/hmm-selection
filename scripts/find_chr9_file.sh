@@ -1,10 +1,8 @@
 #!/bin/bash
-# Script to find the correct chromosome 9 filename on 1000 Genomes FTP
 
 echo "Searching for chromosome 9 VCF files on 1000 Genomes FTP..."
 echo ""
 
-# List all files in the release directory
 echo "Available chromosome 9 files:"
 curl -s ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/ | \
   grep -i "chr9" | \

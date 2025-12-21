@@ -1,27 +1,21 @@
 #!/usr/bin/env python3
-"""
-Quick script to check your data size and suggest how many more SNPs you need.
-"""
 
 import pandas as pd
 import sys
 import os
 
-# Add src to path
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(current_dir)
 sys.path.append(os.path.join(project_root, 'src'))
 
 
 def check_data_size(csv_path):
-    """Check the size and coverage of your allele frequency data."""
     print("="*60)
     print("DATA SIZE CHECKER")
     print("="*60)
     
     df = pd.read_csv(csv_path)
     
-    # Basic stats
     unique_positions = df['pos'].nunique()
     total_rows = len(df)
     populations = df['pop'].unique()
@@ -36,7 +30,6 @@ def check_data_size(csv_path):
     print(f"  Region: chr{df['chrom'].iloc[0]} {region_start:,} - {region_end:,}")
     print(f"  Region size: {region_size:,} bp ({region_size/1000:.1f} kb)")
     
-    # Recommendations
     print(f"\n💡 Recommendations:")
     if unique_positions < 20:
         print(f"  ⚠️  You have {unique_positions} SNPs - this is quite small for HMM analysis")
@@ -53,23 +46,19 @@ def check_data_size(csv_path):
     else:
         print(f"  ✓✓ You have {unique_positions} SNPs - excellent size for HMM analysis!")
     
-    # Suggest region expansion
     print(f"\n🗺️  Suggested Region Expansion:")
     current_center = (region_start + region_end) / 2
     current_size = region_end - region_start
     
-    # Expand by 2x
     expanded_start = int(current_center - current_size)
     expanded_end = int(current_center + current_size)
     print(f"  Current: {region_start:,} - {region_end:,} ({current_size/1000:.1f} kb)")
     print(f"  Expand 2x: {expanded_start:,} - {expanded_end:,} ({(expanded_end-expanded_start)/1000:.1f} kb)")
     
-    # Expand by 5x (recommended)
     expanded_start_5x = int(current_center - current_size * 2.5)
     expanded_end_5x = int(current_center + current_size * 2.5)
     print(f"  Expand 5x: {expanded_start_5x:,} - {expanded_end_5x:,} ({(expanded_end_5x-expanded_start_5x)/1000:.1f} kb) ⭐ Recommended")
     
-    # Check data quality
     print(f"\n🔍 Data Quality Check:")
     missing_af = df[df['af'].isna()].shape[0]
     if missing_af > 0:
@@ -77,7 +66,6 @@ def check_data_size(csv_path):
     else:
         print(f"  ✓ No missing allele frequencies")
     
-    # Check if all populations have data for all positions
     pos_counts = df.groupby('pos')['pop'].count()
     expected_per_pos = len(populations)
     incomplete = (pos_counts < expected_per_pos).sum()

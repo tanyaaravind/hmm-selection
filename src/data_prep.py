@@ -1,14 +1,3 @@
-"""
-Data preparation for 1000 Genomes ABO/Rh loci.
-
-This script focuses on Wellington's responsibilities:
-- Read VCF (or pre-extracted allele frequency table).
-- Compute per-population allele frequencies and DeltaAF = |AF_popA - AF_popB|.
-- Save tidy tables for downstream HMM/benchmarking.
-
-The code uses cyvcf2 if available; otherwise it can operate on a small
-CSV allele-frequency export. Keep inputs small when testing locally.
-"""
 
 import os
 import sys
@@ -17,16 +6,13 @@ import pandas as pd
 from typing import Dict, List, Tuple
 
 try:
-    from cyvcf2 import VCF  # Optional, not in base requirements
+    from cyvcf2 import VCF
 except ImportError:
     VCF = None
 
 
 def load_sample_map(sample_map_path: str) -> Dict[str, str]:
-    """
-    Load mapping of sample ID -> population code (e.g., YRI, CEU, CHB).
-    Expected CSV with columns: sample_id,pop.
-    """
+
     df = pd.read_csv(sample_map_path)
     if not {"sample_id", "pop"}.issubset(df.columns):
         raise ValueError("sample_map must have columns sample_id,pop")
@@ -34,19 +20,13 @@ def load_sample_map(sample_map_path: str) -> Dict[str, str]:
 
 
 def allele_frequencies_from_vcf(vcf_path: str, sample_map: Dict[str, str]) -> pd.DataFrame:
-    """
-    Compute allele frequencies per population from a VCF file.
 
-    Returns a tidy DataFrame with columns:
-    chrom, pos, ref, alt, pop, alt_count, total_alleles, af
-    """
     if VCF is None:
         raise ImportError("cyvcf2 is required for VCF parsing. Install with `pip install cyvcf2`.")
 
     vcf = VCF(vcf_path)
     sample_to_pop = sample_map
 
-    # Build population -> indices lookup
     pop_to_indices: Dict[str, List[int]] = {}
     for idx, sample in enumerate(vcf.samples):
         pop = sample_to_pop.get(sample)
@@ -57,12 +37,10 @@ def allele_frequencies_from_vcf(vcf_path: str, sample_map: Dict[str, str]) -> pd
     records = []
     for variant in vcf:
         for pop, idxs in pop_to_indices.items():
-            # GTs are tuples like (0,1)
             alt_count = 0
             total = 0
             for sample_idx in idxs:
                 gt = variant.genotypes[sample_idx]
-                # genotype is (allele1, allele2, phased flag)
                 if len(gt) < 2:
                     continue
                 a1, a2 = gt[0], gt[1]
@@ -92,9 +70,7 @@ def allele_frequencies_from_vcf(vcf_path: str, sample_map: Dict[str, str]) -> pd
 
 
 def delta_af_table(af_df: pd.DataFrame, pop_a: str, pop_b: str) -> pd.DataFrame:
-    """
-    Compute DeltaAF = |AF_pop_a - AF_pop_b| for matched variants.
-    """
+
     a = af_df[af_df["pop"] == pop_a][["chrom", "pos", "af"]].rename(columns={"af": f"af_{pop_a}"})
     b = af_df[af_df["pop"] == pop_b][["chrom", "pos", "af"]].rename(columns={"af": f"af_{pop_b}"})
     merged = a.merge(b, on=["chrom", "pos"], how="inner")
@@ -112,43 +88,11 @@ def save_tables(af_df: pd.DataFrame, delta_df: pd.DataFrame, out_dir: str):
 
 
 def load_hmm_data(delta_af_path: str, pop_a: str = None, pop_b: str = None):
-    """
-    Load DeltaAF data and convert to HMM input format.
-    
-    This function reads the delta_af.csv file produced by data_prep.py
-    and converts it to the format expected by SelectionHMM:
-    - observations: numpy array of DeltaAF values
-    - positions: numpy array of genomic positions (in bp)
-    
-    Parameters:
-    -----------
-    delta_af_path : str
-        Path to delta_af.csv file (output from data_prep.py)
-    pop_a : str, optional
-        Population A name (for column matching). If None, auto-detects.
-    pop_b : str, optional
-        Population B name (for column matching). If None, auto-detects.
-    
-    Returns:
-    --------
-    observations : numpy array
-        DeltaAF values (|AF_popA - AF_popB|) for each SNP
-    positions : numpy array
-        Genomic positions in base pairs
-    metadata : dict
-        Dictionary with additional info: chrom, af_pop_a, af_pop_b, snp_ids (if available)
-    
-    Example:
-    --------
-    >>> observations, positions, metadata = load_hmm_data('results/abo_freqs/delta_af.csv')
-    >>> hmm = SelectionHMM(emission_params, transition_params)
-    >>> posteriors = hmm.posterior_probabilities(observations, positions)
-    """
+
     import numpy as np
     
     delta_df = pd.read_csv(delta_af_path)
     
-    # Auto-detect population columns if not provided
     if pop_a is None or pop_b is None:
         af_cols = [col for col in delta_df.columns if col.startswith('af_')]
         if len(af_cols) >= 2:
@@ -160,7 +104,6 @@ def load_hmm_data(delta_af_path: str, pop_a: str = None, pop_b: str = None):
     af_a_col = f'af_{pop_a}'
     af_b_col = f'af_{pop_b}'
     
-    # Validate columns exist
     required_cols = ['pos', 'delta_af']
     if af_a_col not in delta_df.columns:
         required_cols.append(af_a_col)
@@ -171,14 +114,11 @@ def load_hmm_data(delta_af_path: str, pop_a: str = None, pop_b: str = None):
     if missing:
         raise ValueError(f"Missing required columns in {delta_af_path}: {missing}")
     
-    # Sort by position to ensure correct order
     delta_df = delta_df.sort_values('pos').reset_index(drop=True)
     
-    # Extract data
     positions = delta_df['pos'].values.astype(int)
     observations = delta_df['delta_af'].values.astype(float)
     
-    # Build metadata
     metadata = {
         'chrom': delta_df['chrom'].values[0] if 'chrom' in delta_df.columns else None,
         'pop_a': pop_a,
@@ -189,13 +129,11 @@ def load_hmm_data(delta_af_path: str, pop_a: str = None, pop_b: str = None):
         'region_size': int(positions.max() - positions.min())
     }
     
-    # Add allele frequencies if available
     if af_a_col in delta_df.columns:
         metadata['af_pop_a'] = delta_df[af_a_col].values
     if af_b_col in delta_df.columns:
         metadata['af_pop_b'] = delta_df[af_b_col].values
     
-    # Add SNP IDs if available (rs numbers)
     if 'snp_id' in delta_df.columns:
         metadata['snp_ids'] = delta_df['snp_id'].values.tolist()
     elif 'id' in delta_df.columns:
@@ -205,15 +143,6 @@ def load_hmm_data(delta_af_path: str, pop_a: str = None, pop_b: str = None):
 
 
 def main():
-    """
-    Minimal CLI for quick tests.
-
-    Examples:
-    python src/data_prep.py --vcf data/abo_slice.vcf.gz --sample-map data/samples.csv --pop-a YRI --pop-b CEU --out results/abo_freqs
-
-    For environments without VCF parsing, you can provide a precomputed
-    allele frequency CSV via --af-table.
-    """
     import argparse
 
     parser = argparse.ArgumentParser(description="Compute allele frequencies and DeltaAF for 1000G loci.")
